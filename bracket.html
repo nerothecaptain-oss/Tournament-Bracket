@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WC3 Tournament Bracket</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: rgba(0, 0, 0, 0);
+            color: #f1f1f1;
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 16px;
+            user-select: none;
+        }
+        body.overlay-only #controls { display: none !important; }
+
+        #controls {
+            background: rgba(15, 20, 25, 0.95);
+            border: 2px solid #ce9d4d;
+            padding: 10px 16px;
+            display: inline-block;
+            margin-bottom: 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        button {
+            background: #ce9d4d; color: #000; border: none;
+            padding: 8px 14px; font-weight: bold; font-family: 'Cinzel', serif;
+            cursor: pointer; font-size: 13px; border-radius: 4px;
+            margin-right: 6px;
+        }
+        button.secondary { background: #555; color: #fff; }
+        button:hover { background: #e8bd75; }
+        button.secondary:hover { background: #777; }
+        .instructions { font-size: 12px; color: #ccc; margin-top: 6px; display: block; }
+
+        /* Bracket container */
+        #bracket {
+            position: relative;
+            padding: 20px;
+        }
+        .row {
+            display: flex; align-items: stretch;
+            gap: 70px;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        .row-label {
+            position: absolute;
+            left: -8px; top: 0;
+            font-family: 'Cinzel', serif;
+            color: #ce9d4d; font-size: 12px; letter-spacing: 2px;
+            writing-mode: vertical-rl; transform: rotate(180deg);
+            opacity: 0.5;
+        }
+        .col {
+            display: flex; flex-direction: column;
+            justify-content: space-around;
+            min-width: 180px;
+        }
+        .col-title {
+            font-family: 'Cinzel', serif; font-size: 13px;
+            color: #ccc; letter-spacing: 1px;
+            background: rgba(30,35,40,0.85);
+            border-radius: 4px;
+            padding: 6px 10px;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        .matches {
+            display: flex; flex-direction: column;
+            justify-content: space-around;
+            flex: 1; gap: 16px;
+        }
+
+        .match {
+            background: rgba(0, 0, 0, 0.75);
+            border: 1px solid #3a3a3a;
+            /* Match the rounded corners of the player banner PNGs. Adjust to taste. */
+            border-radius: 16px;
+            width: 180px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+            position: relative;
+            z-index: 2;
+            overflow: hidden;
+        }
+        .match.bo5 { border-color: #8a6a2f; }
+        .match.gf { border-color: #ce9d4d; box-shadow: 0 0 12px rgba(206,157,77,0.3); }
+
+        .player {
+            display: flex; align-items: stretch;
+            transition: opacity 0.2s;
+            height: 52px;
+            position: relative;
+            overflow: hidden;
+        }
+        .player.loser { opacity: 0.4; }
+        .player.winner::after {
+            content: ''; position: absolute; inset: 0;
+            box-shadow: inset 0 0 0 2px #ce9d4d;
+            pointer-events: none;
+        }
+
+        .player .banner {
+            flex: 1 1 auto;
+            background-size: contain;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-color: transparent;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .player .name-fallback {
+            font-family: 'Cinzel', serif; font-size: 13px;
+            color: #888; padding: 0 10px;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+        }
+        .player .score {
+            flex: 0 0 36px;
+            background: rgba(0,0,0,0.75);
+            text-align: center;
+            font-weight: bold; font-size: 17px;
+            color: #ce9d4d;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1;
+        }
+
+        body.tournament-mode .match { border-color: #ce9d4d; }
+        body.tournament-mode .player { cursor: pointer; }
+        body.tournament-mode .player:hover .banner { filter: brightness(1.2); }
+        body.seeding-mode .player.empty { cursor: pointer; }
+        body.seeding-mode .player.empty:hover .banner { background-color: rgba(206,157,77,0.25); }
+
+        /* Champion box */
+        .champion {
+            background: rgba(20,25,30,0.88);
+            border: 2px solid #ce9d4d;
+            box-shadow: 0 0 25px rgba(206,157,77,0.5);
+            border-radius: 6px;
+            padding: 10px;
+            text-align: center;
+            width: 230px;
+            box-sizing: border-box;
+        }
+        .champion .clabel {
+            font-family: 'Cinzel', serif; color: #ce9d4d;
+            font-size: 13px; letter-spacing: 2px; margin-bottom: 6px;
+        }
+        .champion .cbanner {
+            width: 100%; height: 70px;
+            background-size: cover; background-position: center;
+            background-color: rgba(0,0,0,0.4);
+            border-radius: 4px;
+            border: 1px solid #ce9d4d;
+        }
+        .champion .cname {
+            font-family: 'Cinzel', serif; font-size: 16px;
+            color: #ce9d4d; margin-top: 4px;
+        }
+
+        /* SVG connector overlay */
+        #connectors {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        #connectors path {
+            fill: none;
+            stroke: #555;
+            stroke-width: 1.5;
+        }
+        #connectors path.active { stroke: #ce9d4d; stroke-width: 2; }
+
+        /* Picker */
+        #picker {
+            display: none;
+            position: fixed;
+            background: rgba(15,20,25,0.98);
+            border: 2px solid #ce9d4d; border-radius: 6px;
+            padding: 10px; z-index: 1000;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.8);
+            max-height: 80vh; overflow-y: auto;
+        }
+        #picker h4 { margin: 0 0 8px 0; font-family: 'Cinzel', serif; color: #ce9d4d; font-size: 13px; }
+        .picker-item {
+            display: flex; align-items: center;
+            cursor: pointer; border-radius: 4px;
+            margin-bottom: 4px;
+            overflow: hidden;
+            background: rgba(40,45,50,0.6);
+            height: 40px;
+        }
+        .picker-item:hover { background: rgba(206,157,77,0.25); }
+        .picker-item .pi-banner {
+            width: 140px; height: 100%;
+            background-size: cover; background-position: center;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .picker-item .pi-name {
+            padding: 0 10px; font-family: 'Cinzel', serif; font-size: 13px;
+            flex: 1;
+        }
+        .picker-clear {
+            color: #e88; border-top: 1px solid #444; margin-top: 6px;
+            padding-top: 8px; cursor: pointer; font-size: 13px;
+        }
+        .picker-clear:hover { color: #faa; }
+    </style>
+</head>
+<body class="seeding-mode">
+
+    <div id="controls">
+        <button id="modeBtn">Mode: SEEDING</button>
+        <button id="resetScoresBtn" class="secondary">Reset Scores</button>
+        <button id="resetAllBtn" class="secondary">Reset All</button>
+        <button id="exportBtn" class="secondary">Export</button>
+        <button id="importBtn" class="secondary">Import</button>
+        <input type="file" id="importFile" accept="application/json,.json" style="display:none;">
+        <span class="instructions" id="instructionText"><strong>Seeding:</strong> Click any empty UB Quarterfinal slot to assign a player.</span>
+    </div>
+
+    <div id="bracket">
+        <svg id="connectors"></svg>
+
+        <!-- UPPER BRACKET ROW -->
+        <div class="row" id="ub-row">
+            <div class="col">
+                <div class="col-title">UB Quarterfinals</div>
+                <div class="matches" id="col-qf">
+                    <div class="match" data-id="qf1" data-bo="3"></div>
+                    <div class="match" data-id="qf2" data-bo="3"></div>
+                    <div class="match" data-id="qf3" data-bo="3"></div>
+                    <div class="match" data-id="qf4" data-bo="3"></div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="col-title">UB Semifinals</div>
+                <div class="matches" id="col-sf">
+                    <div class="match" data-id="sf1" data-bo="3"></div>
+                    <div class="match" data-id="sf2" data-bo="3"></div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="col-title">&nbsp;</div>
+                <div class="matches"></div>
+            </div>
+            <div class="col">
+                <div class="col-title">Upper Bracket Final</div>
+                <div class="matches" id="col-ubf">
+                    <div class="match bo5" data-id="ubf" data-bo="5"></div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="col-title">Grand Final</div>
+                <div class="matches" id="col-gf">
+                    <div class="match gf bo5" data-id="gf" data-bo="5"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LOWER BRACKET ROW -->
+        <div class="row" id="lb-row">
+            <div class="col">
+                <div class="col-title">LB Round 1</div>
+                <div class="matches" id="col-lb1">
+                    <div class="match" data-id="lb1a" data-bo="3"></div>
+                    <div class="match" data-id="lb1b" data-bo="3"></div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="col-title">LB Quarterfinals</div>
+                <div class="matches" id="col-lb2">
+                    <div class="match" data-id="lb2a" data-bo="3"></div>
+                    <div class="match" data-id="lb2b" data-bo="3"></div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="col-title">LB Semifinal</div>
+                <div class="matches" id="col-lbsf">
+                    <div class="match" data-id="lbsf" data-bo="3"></div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="col-title">Lower Bracket Final</div>
+                <div class="matches" id="col-lbf">
+                    <div class="match bo5" data-id="lbf" data-bo="5"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="picker"><h4>Assign player</h4><div id="picker-list"></div></div>
+
+    <script>
+        // ---------- HARDCODED ROSTER ----------
+        // Paste direct image URLs below. Imgur tip: use the direct link ending in .png/.jpg
+        // (right-click the image on imgur.com → "Copy image address"), NOT the page URL.
+        // Example direct link: https://i.imgur.com/AbCdEfG.png
+        const ROSTER = [
+            { id:'p1', name:'Maxim',        img:'ICONMaxim.png' },
+            { id:'p2', name:'YamatoCannon', img:'ICONYamato2.png' },
+            { id:'p3', name:'MaryMaybe',    img:'ICONMary.png' },
+            { id:'p4', name:'Tyler1',       img:'ICONTyler.png' },
+            { id:'p5', name:'Dantes',       img:'ICONDantes.png' },
+            { id:'p6', name:'Hera',         img:'ICONHera.png' },
+            { id:'p7', name:'Pohx',         img:'ICONPohx.png' },
+            { id:'p8', name:'Simply',       img:'ICONSimply.png' },
+        ];
+
+        // ---------- STATE ----------
+        const STORAGE_KEY = 'wc3-de-bracket-v2';
+        const params = new URLSearchParams(location.search);
+        if (params.has('overlay')) document.body.classList.add('overlay-only');
+
+        const MATCH_IDS = ['qf1','qf2','qf3','qf4','sf1','sf2','ubf','lb1a','lb1b','lb2a','lb2b','lbsf','lbf','gf'];
+        const UB_R1 = new Set(['qf1','qf2','qf3','qf4']);
+        const state = { mode: 'seeding', matches: {} };
+        MATCH_IDS.forEach(id => state.matches[id] = { scoreA:0, scoreB:0, playerA:null, playerB:null });
+
+        // Winner routes: which match's slot the WINNER of `key` advances to.
+        const WIN_ROUTES = {
+            qf1: { to:'sf1', slot:'a' },
+            qf2: { to:'sf1', slot:'b' },
+            qf3: { to:'sf2', slot:'a' },
+            qf4: { to:'sf2', slot:'b' },
+            sf1: { to:'ubf', slot:'a' },
+            sf2: { to:'ubf', slot:'b' },
+            ubf: { to:'gf',  slot:'a' },
+            lb1a:{ to:'lb2a',slot:'b' },   // straight forward
+            lb1b:{ to:'lb2b',slot:'b' },   // straight forward
+            lb2a:{ to:'lbsf',slot:'a' },
+            lb2b:{ to:'lbsf',slot:'b' },
+            lbsf:{ to:'lbf', slot:'b' },
+            lbf: { to:'gf',  slot:'b' },
+            gf:  { to:'champion' },
+        };
+        // Loser routes (UB only): loser of `key` drops to LB match/slot.
+        const LOSER_ROUTES = {
+            qf1: { to:'lb1a', slot:'a' },
+            qf2: { to:'lb1a', slot:'b' },
+            qf3: { to:'lb1b', slot:'a' },
+            qf4: { to:'lb1b', slot:'b' },
+            sf1: { to:'lb2b', slot:'a' },   // SF1 loser swaps sides
+            sf2: { to:'lb2a', slot:'a' },   // SF2 loser swaps sides
+            ubf: { to:'lbf',  slot:'a' },
+        };
+
+        // Connector segments (for SVG lines). source match -> dest match's slot.
+        const CONNECTORS = [
+            ['qf1','sf1','a'], ['qf2','sf1','b'],
+            ['qf3','sf2','a'], ['qf4','sf2','b'],
+            ['sf1','ubf','a'], ['sf2','ubf','b'],
+            ['ubf','gf','a'],
+            ['lb1a','lb2a','b'], ['lb1b','lb2b','b'],
+            ['lb2a','lbsf','a'], ['lb2b','lbsf','b'],
+            ['lbsf','lbf','b'],
+            ['lbf','gf','b'],
+        ];
+
+        // ---------- HELPERS ----------
+        const winsNeeded = bo => Math.ceil((bo + 1) / 2);
+        const matchEl = id => document.querySelector(`.match[data-id="${id}"]`);
+        const playerById = id => ROSTER.find(p => p.id === id) || null;
+        function placedInUBR1() {
+            const used = new Set();
+            UB_R1.forEach(id => {
+                const m = state.matches[id];
+                if (m.playerA) used.add(m.playerA);
+                if (m.playerB) used.add(m.playerB);
+            });
+            return used;
+        }
+        function getWinner(id) {
+            const m = state.matches[id];
+            const need = winsNeeded(parseInt(matchEl(id).dataset.bo));
+            if (m.scoreA >= need && m.playerA) return 'a';
+            if (m.scoreB >= need && m.playerB) return 'b';
+            return null;
+        }
+
+        // ---------- RENDER ----------
+        function bannerStyle(p) {
+            if (!p || !p.img) return '';
+            // Single quotes inside url() so they don't break the outer style="..." attribute.
+            const safe = p.img.replace(/'/g, "%27");
+            return `background-image:url('${safe}')`;
+        }
+
+        function renderMatch(id) {
+            const el = matchEl(id);
+            const m = state.matches[id];
+            const winnerSide = getWinner(id);
+            const pA = playerById(m.playerA);
+            const pB = playerById(m.playerB);
+            const slot = (p, side) => {
+                const isEmpty = !p;
+                const winner = winnerSide === side;
+                const loser = winnerSide && winnerSide !== side;
+                const fallback = isEmpty ? 'TBD' : (p.img ? '' : p.name);
+                const score = side === 'a' ? m.scoreA : m.scoreB;
+                return `
+                    <div class="player ${isEmpty?'empty':''} ${winner?'winner':''} ${loser?'loser':''}" data-slot="${side}">
+                        <div class="banner" style="${bannerStyle(p)}">
+                            ${fallback ? `<span class="name-fallback">${fallback}</span>` : ''}
+                        </div>
+                        <span class="score">${score}</span>
+                    </div>
+                `;
+            };
+            el.innerHTML = slot(pA,'a') + slot(pB,'b');
+            el.querySelectorAll('.player').forEach(p => {
+                p.addEventListener('mousedown', e => onSlotClick(e, id, p.dataset.slot));
+            });
+        }
+
+        function renderAll() {
+            MATCH_IDS.forEach(renderMatch);
+            requestAnimationFrame(drawConnectors);
+        }
+
+        // ---------- ADVANCE ----------
+        // Recompute every downstream slot from scratch on each change.
+        function recompute() {
+            // Snapshot current player assignments so we can zero changed matches' scores
+            const prev = {};
+            MATCH_IDS.forEach(id => prev[id] = { a: state.matches[id].playerA, b: state.matches[id].playerB });
+
+            // Clear all non-UBR1 player slots
+            MATCH_IDS.forEach(id => {
+                if (!UB_R1.has(id)) {
+                    state.matches[id].playerA = null;
+                    state.matches[id].playerB = null;
+                }
+            });
+
+            // Propagate in declared match order
+            MATCH_IDS.forEach(id => {
+                const m = state.matches[id];
+                const winnerSide = getWinner(id);
+                if (!winnerSide) return;
+                const winnerId = winnerSide === 'a' ? m.playerA : m.playerB;
+                const loserId  = winnerSide === 'a' ? m.playerB : m.playerA;
+                const winRoute = WIN_ROUTES[id];
+                if (winRoute && winRoute.to !== 'champion' && state.matches[winRoute.to]) {
+                    state.matches[winRoute.to][winRoute.slot === 'a' ? 'playerA' : 'playerB'] = winnerId;
+                }
+                const loseRoute = LOSER_ROUTES[id];
+                if (loseRoute && loserId) {
+                    state.matches[loseRoute.to][loseRoute.slot === 'a' ? 'playerA' : 'playerB'] = loserId;
+                }
+            });
+
+            // Zero scores for matches whose player assignments changed
+            MATCH_IDS.forEach(id => {
+                const m = state.matches[id];
+                if (!m.playerA) m.scoreA = 0;
+                if (!m.playerB) m.scoreB = 0;
+                if (prev[id].a !== m.playerA || prev[id].b !== m.playerB) {
+                    m.scoreA = 0; m.scoreB = 0;
+                }
+            });
+        }
+
+        // ---------- SLOT CLICK ----------
+        function onSlotClick(e, matchId, slot) {
+            if (state.mode === 'seeding') {
+                if (!UB_R1.has(matchId)) return;
+                e.preventDefault();
+                openPicker(matchId, slot, e.clientX, e.clientY);
+                return;
+            }
+            e.preventDefault();
+            const m = state.matches[matchId];
+            if (!m.playerA || !m.playerB) return;
+            const key = slot === 'a' ? 'scoreA' : 'scoreB';
+            const bo = parseInt(matchEl(matchId).dataset.bo);
+            const max = winsNeeded(bo);
+            if (e.button === 0) { if (m[key] < max) m[key]++; }
+            else if (e.button === 2) { if (m[key] > 0) m[key]--; }
+            else return;
+            if (m.scoreA >= max && m.scoreB >= max) {
+                if (key === 'scoreA') m.scoreB = max - 1;
+                else m.scoreA = max - 1;
+            }
+            recompute();
+            save();
+            renderAll();
+        }
+
+        // ---------- PICKER ----------
+        const picker = document.getElementById('picker');
+        let pickerCtx = null;
+        function openPicker(matchId, slot, x, y) {
+            pickerCtx = { matchId, slot };
+            const list = document.getElementById('picker-list');
+            const used = placedInUBR1();
+            const current = slot === 'a' ? state.matches[matchId].playerA : state.matches[matchId].playerB;
+            list.innerHTML = '';
+            ROSTER.forEach(p => {
+                if (used.has(p.id) && p.id !== current) return;
+                const item = document.createElement('div');
+                item.className = 'picker-item';
+                item.innerHTML = `<div class="pi-banner" style="${bannerStyle(p)}"></div><div class="pi-name">${p.name}</div>`;
+                item.onclick = () => assignPlayer(p.id);
+                list.appendChild(item);
+            });
+            if (current) {
+                const clr = document.createElement('div');
+                clr.className = 'picker-clear';
+                clr.innerText = '× Clear slot';
+                clr.onclick = () => assignPlayer(null);
+                list.appendChild(clr);
+            }
+            picker.style.display = 'block';
+            picker.style.left = Math.min(x, window.innerWidth - 320) + 'px';
+            picker.style.top  = Math.min(y, window.innerHeight - 400) + 'px';
+        }
+        function closePicker() { picker.style.display = 'none'; pickerCtx = null; }
+        function assignPlayer(playerId) {
+            if (!pickerCtx) return;
+            const m = state.matches[pickerCtx.matchId];
+            m[pickerCtx.slot === 'a' ? 'playerA' : 'playerB'] = playerId;
+            closePicker();
+            recompute();
+            save();
+            renderAll();
+        }
+        document.addEventListener('click', e => {
+            if (picker.style.display === 'block' && !picker.contains(e.target) && !e.target.closest('.player')) {
+                closePicker();
+            }
+        });
+
+        // ---------- CONNECTOR LINES ----------
+        function drawConnectors() {
+            const svg = document.getElementById('connectors');
+            const bracket = document.getElementById('bracket');
+            const bRect = bracket.getBoundingClientRect();
+            svg.setAttribute('width', bracket.offsetWidth);
+            svg.setAttribute('height', bracket.offsetHeight);
+            let paths = '';
+            CONNECTORS.forEach(([from, to, slot]) => {
+                const fromEl = matchEl(from);
+                const toEl   = matchEl(to);
+                if (!fromEl || !toEl) return;
+                const fr = fromEl.getBoundingClientRect();
+                const tr = toEl.getBoundingClientRect();
+                const fromX = fr.right - bRect.left;
+                const fromY = fr.top + fr.height/2 - bRect.top;
+                const toX   = tr.left - bRect.left;
+                const slotEl = toEl.querySelector(`.player[data-slot="${slot}"]`);
+                const sr = slotEl ? slotEl.getBoundingClientRect() : tr;
+                const toY = sr.top + sr.height/2 - bRect.top;
+                const midX = (fromX + toX) / 2;
+                const active = getWinner(from) ? ' class="active"' : '';
+                paths += `<path${active} d="M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}" />`;
+            });
+            // Drop-in stubs for slots that receive a player from the UPPER bracket.
+            // Visual hint only — unconnected line coming down-and-right into the slot.
+            const DROP_INS = [
+                ['lb1a','a'], ['lb1a','b'],
+                ['lb1b','a'], ['lb1b','b'],
+                ['lb2a','a'],
+                ['lb2b','a'],
+                ['lbf','a'],
+            ];
+            const STUB_LEN_X = 28;
+            const STUB_LEN_Y = 22;
+            DROP_INS.forEach(([mid, slot]) => {
+                const mEl = matchEl(mid);
+                if (!mEl) return;
+                const slotEl = mEl.querySelector(`.player[data-slot="${slot}"]`);
+                if (!slotEl) return;
+                const sr = slotEl.getBoundingClientRect();
+                const endX = sr.left - bRect.left;
+                const endY = sr.top + sr.height/2 - bRect.top;
+                const cornerX = endX - STUB_LEN_X;
+                const startY = endY - STUB_LEN_Y;
+                paths += `<path d="M ${cornerX} ${startY} L ${cornerX} ${endY} L ${endX} ${endY}" />`;
+            });
+            svg.innerHTML = paths;
+        }
+        window.addEventListener('resize', () => requestAnimationFrame(drawConnectors));
+        window.addEventListener('load', () => requestAnimationFrame(drawConnectors));
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(() => requestAnimationFrame(drawConnectors));
+        }
+        // Belt-and-braces: redraw after async stuff (fonts, banner images) settles.
+        setTimeout(() => requestAnimationFrame(drawConnectors), 250);
+        setTimeout(() => requestAnimationFrame(drawConnectors), 1500);
+        // Redraw when any banner image finishes loading.
+        function watchBannerLoad(url) {
+            if (!url) return;
+            const im = new Image();
+            im.onload = () => requestAnimationFrame(drawConnectors);
+            im.src = url;
+        }
+        ROSTER.forEach(p => watchBannerLoad(p.img));
+
+        // ---------- CONTROLS ----------
+        const modeBtn = document.getElementById('modeBtn');
+        const instructionText = document.getElementById('instructionText');
+        function applyMode() {
+            const overlay = params.has('overlay');
+            document.body.className = (state.mode === 'tournament' ? 'tournament-mode' : 'seeding-mode') +
+                                     (overlay ? ' overlay-only' : '');
+            if (state.mode === 'tournament') {
+                modeBtn.innerText = 'Mode: TOURNAMENT (LIVE)';
+                instructionText.innerHTML = '<strong>Tournament:</strong> Left-Click +1, Right-Click -1. Winners auto-advance; losers drop to LB.';
+            } else {
+                modeBtn.innerText = 'Mode: SEEDING';
+                instructionText.innerHTML = '<strong>Seeding:</strong> Click an empty UB Quarterfinal slot to assign a player.';
+            }
+        }
+        modeBtn.addEventListener('click', () => {
+            state.mode = state.mode === 'seeding' ? 'tournament' : 'seeding';
+            save(); applyMode(); renderAll();
+        });
+        document.getElementById('resetScoresBtn').addEventListener('click', () => {
+            if (!confirm('Reset all scores? Seeding stays.')) return;
+            MATCH_IDS.forEach(id => { state.matches[id].scoreA = 0; state.matches[id].scoreB = 0; });
+            recompute();
+            save(); renderAll();
+        });
+        document.getElementById('resetAllBtn').addEventListener('click', () => {
+            if (!confirm('Reset everything (scores AND seeding)?')) return;
+            MATCH_IDS.forEach(id => state.matches[id] = { scoreA:0, scoreB:0, playerA:null, playerB:null });
+            save(); renderAll();
+        });
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'bracket-state.json'; a.click();
+            URL.revokeObjectURL(url);
+        });
+        document.getElementById('importBtn').addEventListener('click', () => {
+            document.getElementById('importFile').click();
+        });
+        document.getElementById('importFile').addEventListener('change', e => {
+            const file = e.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                let data;
+                try { data = JSON.parse(ev.target.result); }
+                catch { alert('Invalid JSON.'); return; }
+                if (!data.matches) { alert('Bad bracket file.'); return; }
+                if (!confirm('Replace current bracket with import?')) return;
+                state.mode = data.mode || 'seeding';
+                MATCH_IDS.forEach(id => state.matches[id] = data.matches[id] || { scoreA:0, scoreB:0, playerA:null, playerB:null });
+                save(); applyMode(); renderAll();
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        });
+        document.addEventListener('contextmenu', e => e.preventDefault());
+
+        // ---------- PERSISTENCE ----------
+        function save() {
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+        }
+        function load() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return;
+                const data = JSON.parse(raw);
+                state.mode = data.mode || 'seeding';
+                MATCH_IDS.forEach(id => {
+                    if (data.matches && data.matches[id]) state.matches[id] = data.matches[id];
+                });
+            } catch(e) {}
+        }
+        window.addEventListener('storage', e => {
+            if (e.key === STORAGE_KEY) { load(); applyMode(); renderAll(); }
+        });
+
+        // ---------- INIT ----------
+        load();
+        applyMode();
+        renderAll();
+    </script>
+</body>
+</html>
