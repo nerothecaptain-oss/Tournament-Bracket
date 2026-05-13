@@ -77,43 +77,47 @@
 
         .match {
             background: rgba(0, 0, 0, 0.75);
-            border: 1px solid #3a3a3a;
-            /* Match the rounded corners of the player banner PNGs. Adjust to taste. */
-            border-radius: 16px;
+            border-radius: 18px;
             width: 180px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.5);
             position: relative;
             z-index: 2;
             overflow: hidden;
         }
-        .match.bo5 { border-color: #8a6a2f; }
-        .match.gf { border-color: #ce9d4d; box-shadow: 0 0 12px rgba(206,157,77,0.3); }
+        .match.bo5 .player { --player-border-color: #8a6a2f; }
+        .match.gf .player { --player-border-color: #ce9d4d; box-shadow: 0 0 12px rgba(206,157,77,0.2); }
 
         .player {
             display: flex; align-items: stretch;
             transition: opacity 0.2s;
-            height: 52px;
+            height: 48px;
             position: relative;
             overflow: hidden;
+            --player-border-color: #3a3a3a;
+            --player-border-width: 1px;
+            box-sizing: border-box;
+            z-index: 1;
         }
-        .player.loser .banner { opacity: 0.4; }
-        /* 1. Swap box-shadow for a true border to fix browser anti-aliasing bugs */
-        .player.winner::after {
-            content: ''; position: absolute; inset: 0;
-            border: 2px solid #ce9d4d;
+        .player::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border: var(--player-border-width) solid var(--player-border-color);
+            border-radius: inherit;
             box-sizing: border-box;
             pointer-events: none;
-            z-index: 2; 
+            z-index: 2;
+        }
+        .player + .player { margin-top: -1px; }
+        .player.loser .banner { opacity: 0.4; }
+        .player.winner {
+            --player-border-color: #ce9d4d;
+            --player-border-width: 3px;
+            z-index: 3;
         }
 
-        /* 2. Curve the container itself (16px outer - 1px border = 15px perfect fit) */
-        /* Because .player has overflow: hidden, this perfectly slices off the black score box corners! */
-        .player:first-child { border-radius: 15px 15px 0 0; }
-        .player:last-child { border-radius: 0 0 15px 15px; }
-
-        /* 3. Apply the exact same 15px curve to the golden overlay border */
-        .player:first-child.winner::after { border-radius: 15px 15px 0 0; }
-        .player:last-child.winner::after { border-radius: 0 0 15px 15px; }
+        .player:first-child { border-radius: 18px 18px 0 0; }
+        .player:last-child { border-radius: 0 0 18px 18px; }
 
         .player .banner {
             flex: 1 1 auto;
@@ -138,7 +142,7 @@
             z-index: 1;
         }
 
-        body.tournament-mode .match { border-color: #ce9d4d; }
+        body.tournament-mode .player { --player-border-color: #ce9d4d; }
         body.tournament-mode .player { cursor: pointer; }
         body.tournament-mode .player:hover .banner { filter: brightness(1.2); }
         body.seeding-mode .player.empty { cursor: pointer; }
@@ -147,7 +151,7 @@
         /* Champion box */
         .champion {
             background: rgba(20,25,30,0.88);
-            border: 2px solid #ce9d4d;
+            border: 3px solid #ce9d4d;
             box-shadow: 0 0 25px rgba(206,157,77,0.5);
             border-radius: 6px;
             padding: 10px;
@@ -595,13 +599,43 @@ const ROSTER = [
         });
 
         // ---------- CONNECTOR LINES ----------
+        const SVG_NS = 'http://www.w3.org/2000/svg';
+        const connectorPathEls = new Map();
+
+        function upsertConnectorPath(svg, key, d, isActive, seenKeys) {
+            let path = connectorPathEls.get(key);
+            if (!path) {
+                path = document.createElementNS(SVG_NS, 'path');
+                path.dataset.key = key;
+                connectorPathEls.set(key, path);
+                svg.appendChild(path);
+            }
+            if (path.getAttribute('d') !== d) {
+                path.setAttribute('d', d);
+            }
+            const shouldBeActive = !!isActive;
+            if (path.classList.contains('active') !== shouldBeActive) {
+                path.classList.toggle('active', shouldBeActive);
+            }
+            seenKeys.add(key);
+        }
+
+        function pruneConnectorPaths(seenKeys) {
+            for (const [key, path] of connectorPathEls.entries()) {
+                if (!seenKeys.has(key)) {
+                    path.remove();
+                    connectorPathEls.delete(key);
+                }
+            }
+        }
+
         function drawConnectors() {
             const svg = document.getElementById('connectors');
             const bracket = document.getElementById('bracket');
             const bRect = bracket.getBoundingClientRect();
             svg.setAttribute('width', bracket.offsetWidth);
             svg.setAttribute('height', bracket.offsetHeight);
-            let paths = '';
+            const seenKeys = new Set();
             CONNECTORS.forEach(([from, to, slot]) => {
                 const fromEl = matchEl(from);
                 const toEl   = matchEl(to);
@@ -613,7 +647,7 @@ const ROSTER = [
                 const toY = sr.top + sr.height/2 - bRect.top;
                 const fromYCenter = fr.top + fr.height/2 - bRect.top;
                 const destToLeft = tr.left < fr.left;
-                const active = getWinner(from) ? ' class="active"' : '';
+                const isActive = !!getWinner(from);
                let d;
 
                 // --- NEW FIX: Route LBF -> GF into the left side ---
@@ -655,7 +689,7 @@ const ROSTER = [
                     const midX = (fromX + toX) / 2;
                     d = `M ${fromX} ${fromYCenter} L ${midX} ${fromYCenter} L ${midX} ${toY} L ${toX} ${toY}`;
                 }
-                paths += `<path${active} d="${d}" />`;
+                upsertConnectorPath(svg, `conn:${from}->${to}:${slot}`, d, isActive, seenKeys);
             });
             // Drop-in stubs for slots that receive a player from the UPPER bracket.
             // Visual hint only — unconnected line coming down-and-right into the slot.
@@ -680,9 +714,14 @@ const ROSTER = [
                 // Check if this specific slot currently has a player assigned
                 const playerKey = slot === 'a' ? 'playerA' : 'playerB';
                 const isFilled = state.matches[mid][playerKey] !== null;
-                const activeClass = isFilled ? ' class="active"' : '';
-                
-                paths += `<path${activeClass} d="M ${startX} ${endY} L ${endX} ${endY}" />`;
+
+                upsertConnectorPath(
+                    svg,
+                    `stub:${mid}:${slot}`,
+                    `M ${startX} ${endY} L ${endX} ${endY}`,
+                    isFilled,
+                    seenKeys
+                );
             });
             // GF -> Champion connector
             const gfEl = matchEl('gf');
@@ -695,10 +734,15 @@ const ROSTER = [
                 const toX = cr.left - bRect.left;
                 const toY = cr.top + cr.height/2 - bRect.top;
                 const midX = (fromX + toX) / 2;
-                const champActive = getWinner('gf') ? ' class="active"' : '';
-                paths += `<path${champActive} d="M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}" />`;
+                upsertConnectorPath(
+                    svg,
+                    'conn:gf->champion',
+                    `M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}`,
+                    !!getWinner('gf'),
+                    seenKeys
+                );
             }
-            svg.innerHTML = paths;
+            pruneConnectorPaths(seenKeys);
         }
         window.addEventListener('resize', () => requestAnimationFrame(drawConnectors));
         window.addEventListener('load', () => requestAnimationFrame(drawConnectors));
