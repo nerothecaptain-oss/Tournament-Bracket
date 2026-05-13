@@ -6,7 +6,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
-            background-color: rgba(0, 0, 0, 0);
+            background-color: #9B5433;
+			background-image: url("file:///C:/Users/Alex/Desktop/tester951.png");
             color: #f1f1f1;
             font-family: 'Roboto', sans-serif;
             margin: 0;
@@ -60,7 +61,7 @@
             min-width: 180px;
         }
         .col-title {
-            font-family: 'Cinzel', serif; font-size: 13px;
+            font-family: 'Cinzel', serif; font-size: 24px;
             color: #ccc; letter-spacing: 1px;
             background: rgba(30,35,40,0.85);
             border-radius: 4px;
@@ -95,12 +96,24 @@
             position: relative;
             overflow: hidden;
         }
-        .player.loser { opacity: 0.4; }
+        .player.loser .banner { opacity: 0.4; }
+        /* 1. Swap box-shadow for a true border to fix browser anti-aliasing bugs */
         .player.winner::after {
             content: ''; position: absolute; inset: 0;
-            box-shadow: inset 0 0 0 2px #ce9d4d;
+            border: 2px solid #ce9d4d;
+            box-sizing: border-box;
             pointer-events: none;
+            z-index: 2; 
         }
+
+        /* 2. Curve the container itself (16px outer - 1px border = 15px perfect fit) */
+        /* Because .player has overflow: hidden, this perfectly slices off the black score box corners! */
+        .player:first-child { border-radius: 15px 15px 0 0; }
+        .player:last-child { border-radius: 0 0 15px 15px; }
+
+        /* 3. Apply the exact same 15px curve to the golden overlay border */
+        .player:first-child.winner::after { border-radius: 15px 15px 0 0; }
+        .player:last-child.winner::after { border-radius: 0 0 15px 15px; }
 
         .player .banner {
             flex: 1 1 auto;
@@ -168,11 +181,32 @@
         }
         #connectors path {
             fill: none;
-            stroke: #555;
-            stroke-width: 1.5;
+            stroke: #fff;
+            stroke-width: 2;
         }
-        #connectors path.active { stroke: #ce9d4d; stroke-width: 2; }
+#connectors path.active {
+  stroke: #7ddcff;
+  stroke-width: 4;
+  filter: drop-shadow(0 0 2px #00111a)
+          drop-shadow(0 0 5px #009dff)
+          drop-shadow(0 0 12px #00c8ff);
+  animation: activePathGlowIce 1.8s ease-in-out infinite alternate;
+}
 
+@keyframes activePathGlowIce {
+  from {
+    stroke: #45c8ff;
+    filter: drop-shadow(0 0 2px #00111a)
+            drop-shadow(0 0 5px #009dff);
+  }
+
+  to {
+    stroke: #b8f1ff;
+    filter: drop-shadow(0 0 3px #00111a)
+            drop-shadow(0 0 8px #00c8ff)
+            drop-shadow(0 0 18px #00e5ff);
+  }
+}
         /* Picker */
         #picker {
             display: none;
@@ -227,7 +261,7 @@
         <!-- UPPER BRACKET ROW -->
         <div class="row" id="ub-row">
             <div class="col">
-                <div class="col-title">UB Quarterfinals</div>
+                <div class="col-title">UB Quarterfinals (Bo3)</div>
                 <div class="matches" id="col-qf">
                     <div class="match" data-id="qf1" data-bo="3"></div>
                     <div class="match" data-id="qf2" data-bo="3"></div>
@@ -235,27 +269,33 @@
                     <div class="match" data-id="qf4" data-bo="3"></div>
                 </div>
             </div>
-            <div class="col">
-                <div class="col-title">UB Semifinals</div>
+            <div class="col" style="margin-left: 45px;">
+                <div class="col-title">UB Semifinals (Bo3)</div>
                 <div class="matches" id="col-sf">
                     <div class="match" data-id="sf1" data-bo="3"></div>
                     <div class="match" data-id="sf2" data-bo="3"></div>
                 </div>
             </div>
-            <div class="col">
-                <div class="col-title">&nbsp;</div>
-                <div class="matches"></div>
-            </div>
-            <div class="col">
-                <div class="col-title">Upper Bracket Final</div>
+            <div class="col" style="margin-left: 55px;">
+                <div class="col-title">Upper Bracket Final (Bo5)</div>
                 <div class="matches" id="col-ubf">
                     <div class="match bo5" data-id="ubf" data-bo="5"></div>
                 </div>
             </div>
-            <div class="col">
-                <div class="col-title">Grand Final</div>
+            <div class="col" style="margin-left: 60px;">
+                <div class="col-title">Grand Final (Bo5)</div>
                 <div class="matches" id="col-gf">
-                    <div class="match gf bo5" data-id="gf" data-bo="5"></div>
+                    <div class="match gf bo5" data-id="gf" data-bo="5" style="margin-top: -30px;"></div>
+                </div>
+            </div>
+            <div class="col" style="margin-left: 40px;">
+                <div class="col-title">Champion</div>
+                <div class="matches" id="col-champ">
+                    <div class="champion" id="champion-box" style="margin-top: -30px;">
+                        <div class="clabel">CHAMPION</div>
+                        <div class="cbanner" id="champion-banner"></div>
+                        <div class="cname" id="champion-name">—</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -263,27 +303,27 @@
         <!-- LOWER BRACKET ROW -->
         <div class="row" id="lb-row">
             <div class="col">
-                <div class="col-title">LB Round 1</div>
+                <div class="col-title">LB Round 1(Bo3)</div>
                 <div class="matches" id="col-lb1">
                     <div class="match" data-id="lb1a" data-bo="3"></div>
                     <div class="match" data-id="lb1b" data-bo="3"></div>
                 </div>
             </div>
-            <div class="col">
-                <div class="col-title">LB Quarterfinals</div>
+            <div class="col" style="margin-left: 150px;">
+                <div class="col-title">LB Quarterfinals (Bo3)</div>
                 <div class="matches" id="col-lb2">
                     <div class="match" data-id="lb2a" data-bo="3"></div>
                     <div class="match" data-id="lb2b" data-bo="3"></div>
                 </div>
             </div>
             <div class="col">
-                <div class="col-title">LB Semifinal</div>
+                <div class="col-title">LB Semifinal (Bo3)</div>
                 <div class="matches" id="col-lbsf">
                     <div class="match" data-id="lbsf" data-bo="3"></div>
                 </div>
             </div>
-            <div class="col">
-                <div class="col-title">Lower Bracket Final</div>
+           <div class="col" style="margin-left: 160px;">
+                <div class="col-title">LB Final (BO5)</div>
                 <div class="matches" id="col-lbf">
                     <div class="match bo5" data-id="lbf" data-bo="5"></div>
                 </div>
@@ -293,20 +333,21 @@
 
     <div id="picker"><h4>Assign player</h4><div id="picker-list"></div></div>
 
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
     <script>
         // ---------- HARDCODED ROSTER ----------
         // Paste direct image URLs below. Imgur tip: use the direct link ending in .png/.jpg
         // (right-click the image on imgur.com → "Copy image address"), NOT the page URL.
         // Example direct link: https://i.imgur.com/AbCdEfG.png
-        const ROSTER = [
-            { id:'p1', name:'Maxim',        img:'ICONMaxim.png' },
-            { id:'p2', name:'YamatoCannon', img:'ICONYamato2.png' },
-            { id:'p3', name:'MaryMaybe',    img:'ICONMary.png' },
-            { id:'p4', name:'Tyler1',       img:'ICONTyler.png' },
-            { id:'p5', name:'Dantes',       img:'ICONDantes.png' },
-            { id:'p6', name:'Hera',         img:'ICONHera.png' },
-            { id:'p7', name:'Pohx',         img:'ICONPohx.png' },
-            { id:'p8', name:'Simply',       img:'ICONSimply.png' },
+const ROSTER = [
+            { id:'p1', name:'Maxim',        img:'https://i.imgur.com/apBgiJb.png' },
+            { id:'p2', name:'YamatoCannon', img:'https://i.imgur.com/dgsDBi7.png' },
+            { id:'p3', name:'MaryMaybe',    img:'https://i.imgur.com/I3cTNoa.png' },
+            { id:'p4', name:'Tyler1',       img:'https://i.imgur.com/mgALq36.png' },
+            { id:'p5', name:'Dantes',       img:'https://i.imgur.com/8CyXW65.png' },
+            { id:'p6', name:'Hera',         img:'https://i.imgur.com/WX8mX9j.png' },
+            { id:'p7', name:'Pohx',         img:'https://i.imgur.com/SNhsQTY.png' },
+            { id:'p8', name:'Simply',       img:'https://i.imgur.com/I2qPvtC.png' },
         ];
 
         // ---------- STATE ----------
@@ -415,8 +456,28 @@
             });
         }
 
+        function renderChampion() {
+            const m = state.matches['gf'];
+            const winnerSide = getWinner('gf');
+            const winnerId = winnerSide ? (winnerSide === 'a' ? m.playerA : m.playerB) : null;
+            const p = playerById(winnerId);
+            const banner = document.getElementById('champion-banner');
+            const name = document.getElementById('champion-name');
+            const box = document.getElementById('champion-box');
+            if (p) {
+                banner.style.backgroundImage = p.img ? `url('${p.img.replace(/'/g, "%27")}')` : '';
+                name.textContent = '';
+                box.style.opacity = '1';
+            } else {
+                banner.style.backgroundImage = '';
+                name.textContent = '';
+                box.style.opacity = '0.5';
+            }
+        }
+
         function renderAll() {
             MATCH_IDS.forEach(renderMatch);
+            renderChampion();
             requestAnimationFrame(drawConnectors);
         }
 
@@ -547,15 +608,54 @@
                 if (!fromEl || !toEl) return;
                 const fr = fromEl.getBoundingClientRect();
                 const tr = toEl.getBoundingClientRect();
-                const fromX = fr.right - bRect.left;
-                const fromY = fr.top + fr.height/2 - bRect.top;
-                const toX   = tr.left - bRect.left;
                 const slotEl = toEl.querySelector(`.player[data-slot="${slot}"]`);
                 const sr = slotEl ? slotEl.getBoundingClientRect() : tr;
                 const toY = sr.top + sr.height/2 - bRect.top;
-                const midX = (fromX + toX) / 2;
+                const fromYCenter = fr.top + fr.height/2 - bRect.top;
+                const destToLeft = tr.left < fr.left;
                 const active = getWinner(from) ? ' class="active"' : '';
-                paths += `<path${active} d="M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}" />`;
+               let d;
+
+                // --- NEW FIX: Route LBF -> GF into the left side ---
+                if (from === 'lbf' && to === 'gf') {
+                    const fromX = fr.right - bRect.left;
+                    const toX = tr.left - bRect.left;
+                    
+                    const outX = fromX + 20;               // Exit right and push out 20px
+                    const gapY = fr.top - bRect.top - 15;  // Route UP to the empty space between rows
+                    const inX = toX - 20;                  // Route LEFT to the gap right before GF
+                    
+                    d = `M ${fromX} ${fromYCenter} ` +
+                        `L ${outX} ${fromYCenter} ` +
+                        `L ${outX} ${gapY} ` +
+                        `L ${inX} ${gapY} ` +
+                        `L ${inX} ${toY} ` +
+                        `L ${toX} ${toY}`;
+                } 
+                // ---------------------------------------------------
+
+                else if (destToLeft) {
+                    // Destination is up-and-to-the-left of source: exit the RIGHT
+                    // edge of the source, route up and over the top of the
+                    // destination, then drop down into its LEFT edge.
+                    const fromX = fr.right - bRect.left;
+                    const rightChannelX = fromX + 25;
+                    const aboveY = tr.top - bRect.top - 12;
+                    const toX = tr.left - bRect.left;
+                    const leftChannelX = toX - 20;
+                    d = `M ${fromX} ${fromYCenter}` +
+                        ` L ${rightChannelX} ${fromYCenter}` +
+                        ` L ${rightChannelX} ${aboveY}` +
+                        ` L ${leftChannelX} ${aboveY}` +
+                        ` L ${leftChannelX} ${toY}` +
+                        ` L ${toX} ${toY}`;
+                } else {
+                    const fromX = fr.right - bRect.left;
+                    const toX   = tr.left - bRect.left;
+                    const midX = (fromX + toX) / 2;
+                    d = `M ${fromX} ${fromYCenter} L ${midX} ${fromYCenter} L ${midX} ${toY} L ${toX} ${toY}`;
+                }
+                paths += `<path${active} d="${d}" />`;
             });
             // Drop-in stubs for slots that receive a player from the UPPER bracket.
             // Visual hint only — unconnected line coming down-and-right into the slot.
@@ -567,8 +667,7 @@
                 ['lbf','a'],
             ];
             const STUB_LEN_X = 28;
-            const STUB_LEN_Y = 22;
-            DROP_INS.forEach(([mid, slot]) => {
+           DROP_INS.forEach(([mid, slot]) => {
                 const mEl = matchEl(mid);
                 if (!mEl) return;
                 const slotEl = mEl.querySelector(`.player[data-slot="${slot}"]`);
@@ -576,10 +675,29 @@
                 const sr = slotEl.getBoundingClientRect();
                 const endX = sr.left - bRect.left;
                 const endY = sr.top + sr.height/2 - bRect.top;
-                const cornerX = endX - STUB_LEN_X;
-                const startY = endY - STUB_LEN_Y;
-                paths += `<path d="M ${cornerX} ${startY} L ${cornerX} ${endY} L ${endX} ${endY}" />`;
+                const startX = endX - STUB_LEN_X;
+                
+                // Check if this specific slot currently has a player assigned
+                const playerKey = slot === 'a' ? 'playerA' : 'playerB';
+                const isFilled = state.matches[mid][playerKey] !== null;
+                const activeClass = isFilled ? ' class="active"' : '';
+                
+                paths += `<path${activeClass} d="M ${startX} ${endY} L ${endX} ${endY}" />`;
             });
+            // GF -> Champion connector
+            const gfEl = matchEl('gf');
+            const champEl = document.getElementById('champion-box');
+            if (gfEl && champEl) {
+                const gr = gfEl.getBoundingClientRect();
+                const cr = champEl.getBoundingClientRect();
+                const fromX = gr.right - bRect.left;
+                const fromY = gr.top + gr.height/2 - bRect.top;
+                const toX = cr.left - bRect.left;
+                const toY = cr.top + cr.height/2 - bRect.top;
+                const midX = (fromX + toX) / 2;
+                const champActive = getWinner('gf') ? ' class="active"' : '';
+                paths += `<path${champActive} d="M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}" />`;
+            }
             svg.innerHTML = paths;
         }
         window.addEventListener('resize', () => requestAnimationFrame(drawConnectors));
@@ -675,6 +793,23 @@
         window.addEventListener('storage', e => {
             if (e.key === STORAGE_KEY) { load(); applyMode(); renderAll(); }
         });
+		
+		// ---------- CONFETTI ----------
+        function fireConfetti() {
+            if (typeof confetti !== 'function') return;
+            const box = document.getElementById('champion-box');
+            const rect = box.getBoundingClientRect();
+            const origin = {
+                x: (rect.left + rect.width / 2) / window.innerWidth,
+                y: (rect.top + rect.height / 2) / window.innerHeight,
+            };
+            const defaults = { origin, spread: 80, ticks: 200, gravity: 0.9,
+                colors: ['#ce9d4d', '#e8bd75', '#ffffff', '#7ddcff', '#f1f1f1'] };
+            confetti({ ...defaults, particleCount: 120, startVelocity: 45, scalar: 1.1 });
+            setTimeout(() => confetti({ ...defaults, particleCount: 60, startVelocity: 30, angle: 60 }), 150);
+            setTimeout(() => confetti({ ...defaults, particleCount: 60, startVelocity: 30, angle: 120 }), 300);
+        }
+        document.getElementById('champion-box').addEventListener('click', fireConfetti);
 
         // ---------- INIT ----------
         load();
