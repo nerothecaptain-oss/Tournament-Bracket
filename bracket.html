@@ -6,14 +6,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
-            background-color: #9B5433;
-			background-image: url("file:///C:/Users/Alex/Desktop/tester951.png");
             color: #f1f1f1;
             font-family: 'Roboto', sans-serif;
             margin: 0;
             padding: 16px;
             user-select: none;
         }
+        body.has-background { background-color: #9B5433; }
         body.overlay-only #controls { display: none !important; }
 
         #controls {
@@ -340,24 +339,24 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
     <script>
         // ---------- HARDCODED ROSTER ----------
-        // Paste direct image URLs below. Imgur tip: use the direct link ending in .png/.jpg
-        // (right-click the image on imgur.com → "Copy image address"), NOT the page URL.
-        // Example direct link: https://i.imgur.com/AbCdEfG.png
-const ROSTER = [
-            { id:'p1', name:'Maxim',        img:'https://i.imgur.com/apBgiJb.png' },
-            { id:'p2', name:'YamatoCannon', img:'https://i.imgur.com/dgsDBi7.png' },
-            { id:'p3', name:'MaryMaybe',    img:'https://i.imgur.com/I3cTNoa.png' },
-            { id:'p4', name:'Tyler1',       img:'https://i.imgur.com/mgALq36.png' },
-            { id:'p5', name:'Dantes',       img:'https://i.imgur.com/8CyXW65.png' },
-            { id:'p6', name:'Hera',         img:'https://i.imgur.com/WX8mX9j.png' },
-            { id:'p7', name:'Pohx',         img:'https://i.imgur.com/SNhsQTY.png' },
-            { id:'p8', name:'Simply',       img:'https://i.imgur.com/I2qPvtC.png' },
+        const ROSTER = [
+            { id:'p1', name:'Maxim',        img:'ICONDantes.png' },
+            { id:'p2', name:'YamatoCannon', img:'ICONYamato2.png' },
+            { id:'p3', name:'MaryMaybe',    img:'ICONMary.png' },
+            { id:'p4', name:'Tyler1',       img:'ICONTyler.png' },
+            { id:'p5', name:'Dantes',       img:'ICONDantes.png' },
+            { id:'p6', name:'Hera',         img:'ICONHera.png' },
+            { id:'p7', name:'Pohx',         img:'ICONPohx.png' },
+            { id:'p8', name:'Simply',       img:'ICONSimply.png' },
         ];
 
         // ---------- STATE ----------
         const STORAGE_KEY = 'wc3-de-bracket-v2';
-        const params = new URLSearchParams(location.search);
-        if (params.has('overlay')) document.body.classList.add('overlay-only');
+        const currentUrl = new URL(window.location.href);
+        const params = currentUrl.searchParams;
+        const hasParam = key => params.has(key) || new RegExp(`(?:[?#&])${key}(?:[=&]|$)`).test(window.location.href);
+        if (!hasParam('obs')) document.body.classList.add('has-background');
+        if (hasParam('overlay')) document.body.classList.add('overlay-only');
 
         const MATCH_IDS = ['qf1','qf2','qf3','qf4','sf1','sf2','ubf','lb1a','lb1b','lb2a','lb2b','lbsf','lbf','gf'];
         const UB_R1 = new Set(['qf1','qf2','qf3','qf4']);
@@ -765,9 +764,10 @@ const ROSTER = [
         const modeBtn = document.getElementById('modeBtn');
         const instructionText = document.getElementById('instructionText');
         function applyMode() {
-            const overlay = params.has('overlay');
-            document.body.className = (state.mode === 'tournament' ? 'tournament-mode' : 'seeding-mode') +
-                                     (overlay ? ' overlay-only' : '');
+            const classes = [state.mode === 'tournament' ? 'tournament-mode' : 'seeding-mode'];
+            if (!hasParam('obs')) classes.push('has-background');
+            if (hasParam('overlay')) classes.push('overlay-only');
+            document.body.className = classes.join(' ');
             if (state.mode === 'tournament') {
                 modeBtn.innerText = 'Mode: TOURNAMENT (LIVE)';
                 instructionText.innerHTML = '<strong>Tournament:</strong> Left-Click +1, Right-Click -1. Winners auto-advance; losers drop to LB.';
