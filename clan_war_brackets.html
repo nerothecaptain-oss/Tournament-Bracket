@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WC3 Clan War</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #9B5433;
+            background-image: url("file:///C:/Users/Alex/Desktop/tester951.png");
+            color: #f1f1f1;
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 16px 0;
+            user-select: none;
+        }
+        body.overlay-only #controls { display: none !important; }
+
+        /* Center column: roughly half-width, centered on screen. */
+        #war {
+            width: 660px;
+            max-width: calc(100% - 600px);
+            margin: 0 auto;
+        }
+
+        #controls {
+            background: rgba(15, 20, 25, 0.95);
+            border: 2px solid #ce9d4d;
+            padding: 10px 16px;
+            display: inline-block;
+            margin-bottom: 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        button {
+            background: #ce9d4d; color: #000; border: none;
+            padding: 8px 14px; font-weight: bold; font-family: 'Cinzel', serif;
+            cursor: pointer; font-size: 13px; border-radius: 4px;
+            margin-right: 6px;
+        }
+        button.secondary { background: #555; color: #fff; }
+        button:hover { background: #e8bd75; }
+        button.secondary:hover { background: #777; }
+        .instructions { font-size: 12px; color: #ccc; margin-top: 6px; display: block; }
+
+        /* ---------- WAR HEADER ---------- */
+        #war-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(15,20,25,0.9);
+            border: 2px solid #ce9d4d;
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 22px;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.55);
+        }
+        .team {
+            display: flex; align-items: center; gap: 10px;
+            flex: 1;
+        }
+        .team.team-b { justify-content: flex-end; }
+        .team-name {
+            font-family: 'Cinzel', serif; font-size: 21px;
+            color: #ddd; letter-spacing: 1px;
+        }
+        .team-score {
+            font-family: 'Cinzel', serif; font-size: 22px; font-weight: 700;
+            color: #ce9d4d;
+            background: rgba(0,0,0,0.7);
+            border: 2px solid #8a6a2f;
+            border-radius: 8px;
+            min-width: 42px; height: 42px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .team.winner .team-name { color: #ce9d4d; }
+        .team.winner .team-score {
+            border-color: #ce9d4d;
+            box-shadow: 0 0 16px rgba(206,157,77,0.6);
+        }
+        .war-title {
+            font-family: 'Cinzel', serif; font-size: 15px;
+            color: #ce9d4d; letter-spacing: 2px;
+            padding: 0 14px;
+            opacity: 0.85;
+        }
+
+        /* ---------- MATCH CARDS ---------- */
+        .match-card {
+            background: rgba(15,20,25,0.82);
+            border: 1px solid #8a6a2f;
+            border-radius: 12px;
+            padding: 14px 20px 18px;
+            margin-bottom: 18px;
+        }
+        .match-card.bo5 { border-color: #ce9d4d; }
+        .match-title {
+            font-family: 'Cinzel', serif; font-size: 18px;
+            color: #ce9d4d; letter-spacing: 1px;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .match {
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px;
+        }
+
+        .vs {
+            font-family: 'Cinzel', serif; font-size: 18px;
+            color: #ccc; opacity: 0.6; letter-spacing: 2px;
+            flex: 0 0 auto;
+        }
+
+        .player {
+            display: flex; align-items: stretch;
+            transition: opacity 0.2s;
+            height: 56px;
+            width: 240px;
+            position: relative;
+            overflow: hidden;
+            border-radius: 14px;
+            --player-border-color: #3a3a3a;
+            --player-border-width: 1px;
+            box-sizing: border-box;
+            background: rgba(0,0,0,0.75);
+        }
+        .player.side-b { flex-direction: row-reverse; }
+        .player::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border: var(--player-border-width) solid var(--player-border-color);
+            border-radius: inherit;
+            box-sizing: border-box;
+            pointer-events: none;
+            z-index: 2;
+        }
+        .player.loser .banner { opacity: 0.4; }
+        .player.winner {
+            --player-border-color: #ce9d4d;
+            --player-border-width: 3px;
+        }
+        .player.team-slot .banner {
+            background-color: rgba(206,157,77,0.10);
+        }
+
+        .player .banner {
+            flex: 1 1 auto;
+            background-size: contain;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-color: transparent;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .player .name-fallback {
+            font-family: 'Cinzel', serif; font-size: 15px;
+            color: #aaa; padding: 0 10px;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+        }
+        .player.team-slot .name-fallback { color: #e8bd75; font-size: 17px; }
+        .player .score {
+            flex: 0 0 44px;
+            background: rgba(0,0,0,0.8);
+            text-align: center;
+            font-weight: bold; font-size: 19px;
+            color: #ce9d4d;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1;
+        }
+
+        body.seeding-mode .match[data-type="pick"] .player { cursor: pointer; }
+        body.seeding-mode .match[data-type="pick"] .player:hover .banner { filter: brightness(1.25); }
+        body.tournament-mode .player { cursor: pointer; }
+        body.tournament-mode .player:hover .banner { filter: brightness(1.2); }
+
+        /* ---------- PICKER ---------- */
+        #picker {
+            display: none;
+            position: fixed;
+            background: rgba(15,20,25,0.98);
+            border: 2px solid #ce9d4d; border-radius: 6px;
+            padding: 10px; z-index: 1000;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.8);
+            max-height: 80vh; overflow-y: auto;
+        }
+        #picker h4 { margin: 0 0 8px 0; font-family: 'Cinzel', serif; color: #ce9d4d; font-size: 13px; }
+        .picker-item {
+            display: flex; align-items: center;
+            cursor: pointer; border-radius: 4px;
+            margin-bottom: 4px;
+            overflow: hidden;
+            background: rgba(40,45,50,0.6);
+            height: 40px;
+        }
+        .picker-item:hover { background: rgba(206,157,77,0.25); }
+        .picker-item .pi-banner {
+            width: 140px; height: 100%;
+            background-size: cover; background-position: center;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .picker-item .pi-name {
+            padding: 0 10px; font-family: 'Cinzel', serif; font-size: 13px;
+            flex: 1;
+        }
+        .picker-clear {
+            color: #e88; border-top: 1px solid #444; margin-top: 6px;
+            padding-top: 8px; cursor: pointer; font-size: 13px;
+        }
+        .picker-clear:hover { color: #faa; }
+    </style>
+</head>
+<body class="seeding-mode">
+
+    <div id="war">
+        <div id="controls">
+            <button id="modeBtn">Mode: SEEDING</button>
+            <button id="resetScoresBtn" class="secondary">Reset Scores</button>
+            <button id="resetAllBtn" class="secondary">Reset All</button>
+            <button id="exportBtn" class="secondary">Export</button>
+            <button id="importBtn" class="secondary">Import</button>
+            <input type="file" id="importFile" accept="application/json,.json" style="display:none;">
+            <span class="instructions" id="instructionText"><strong>Seeding:</strong> Click a player slot to assign a player.</span>
+        </div>
+
+        <!-- WAR HEADER -->
+        <div id="war-header">
+            <div class="team team-a" id="team-alpha">
+                <span class="team-name">Team Alpha</span>
+                <span class="team-score" id="scoreAlpha">0</span>
+            </div>
+            <div class="war-title">CLAN WAR</div>
+            <div class="team team-b" id="team-omega">
+                <span class="team-score" id="scoreOmega">0</span>
+                <span class="team-name">Team Omega</span>
+            </div>
+        </div>
+
+        <!-- MATCH CARDS (built by JS) -->
+        <div id="matches"></div>
+    </div>
+
+    <div id="picker"><h4>Assign player</h4><div id="picker-list"></div></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <script>
+        // ---------- HARDCODED ROSTER ----------
+        // Paste direct image URLs below. Imgur tip: use the direct link ending in .png/.jpg
+        // (right-click the image on imgur.com -> "Copy image address"), NOT the page URL.
+        const ROSTER = [
+            { id:'p1', name:'Maxim',        img:'https://i.imgur.com/apBgiJb.png' },
+            { id:'p2', name:'YamatoCannon', img:'https://i.imgur.com/dgsDBi7.png' },
+            { id:'p3', name:'MaryMaybe',    img:'https://i.imgur.com/I3cTNoa.png' },
+            { id:'p4', name:'Tyler1',       img:'https://i.imgur.com/mgALq36.png' },
+            { id:'p5', name:'Dantes',       img:'https://i.imgur.com/8CyXW65.png' },
+            { id:'p6', name:'Hera',         img:'https://i.imgur.com/WX8mX9j.png' },
+            { id:'p7', name:'Pohx',         img:'https://i.imgur.com/SNhsQTY.png' },
+            { id:'p8', name:'Simply',       img:'https://i.imgur.com/I2qPvtC.png' },
+        ];
+
+        // ---------- MATCH DEFINITIONS ----------
+        // type 'pick' = both slots assignable from the roster.
+        // type 'team' = fixed Team Alpha (left) vs Team Omega (right), not assignable.
+        // exclude   = match id whose players cannot be picked here (Co-Op blocks Headliners).
+        const MATCHES = [
+            { id:'headliner',  title:'The Headliner — 1v1 (BO3)',       type:'pick' },
+            { id:'coop',       title:'The Co-Op Battle: 2v2 (BO3)',     type:'pick', exclude:'headliner' },
+            { id:'warcraft',   title:'Total Warcraft: 4v4 (BO3)',       type:'team' },
+            { id:'redemption', title:'The Redemption Battle: 1v1 (BO3)',type:'pick' },
+            { id:'ace',        title:'The ACE Battle: 1v1 (BO3)',       type:'pick' },
+        ];
+        const MATCH_IDS = MATCHES.map(m => m.id);
+        const matchDef = id => MATCHES.find(m => m.id === id);
+        const BO = 3;                       // every series is best-of-3
+        const WINS_NEEDED = Math.ceil((BO + 1) / 2);   // first to 2
+
+        // ---------- STATE ----------
+        const STORAGE_KEY = 'wc3-clan-war-v1';
+        const params = new URLSearchParams(location.search);
+        if (params.has('overlay')) document.body.classList.add('overlay-only');
+
+        const state = { mode: 'seeding', matches: {} };
+        MATCH_IDS.forEach(id => state.matches[id] = { scoreA:0, scoreB:0, playerA:null, playerB:null });
+
+        // ---------- HELPERS ----------
+        const matchEl = id => document.querySelector(`.match[data-id="${id}"]`);
+        const playerById = id => ROSTER.find(p => p.id === id) || null;
+
+        function getWinner(id) {
+            const m = state.matches[id];
+            const def = matchDef(id);
+            // 'pick' matches need both players assigned before a winner counts.
+            if (def.type === 'pick' && (!m.playerA || !m.playerB)) return null;
+            if (m.scoreA >= WINS_NEEDED) return 'a';
+            if (m.scoreB >= WINS_NEEDED) return 'b';
+            return null;
+        }
+
+        // Team header scores = number of series each side has won.
+        // Left slot (a) = Team Alpha, right slot (b) = Team Omega.
+        function teamScores() {
+            let alpha = 0, omega = 0;
+            MATCH_IDS.forEach(id => {
+                const w = getWinner(id);
+                if (w === 'a') alpha++;
+                else if (w === 'b') omega++;
+            });
+            return { alpha, omega };
+        }
+
+        // Players that cannot be picked for a given slot.
+        function excludedFor(matchId, slot) {
+            const used = new Set();
+            const m = state.matches[matchId];
+            // Can't put the same player on both sides of one match.
+            const other = slot === 'a' ? m.playerB : m.playerA;
+            if (other) used.add(other);
+            // Co-Op Battle: the two Headliner players are unavailable.
+            const def = matchDef(matchId);
+            if (def.exclude) {
+                const ex = state.matches[def.exclude];
+                if (ex.playerA) used.add(ex.playerA);
+                if (ex.playerB) used.add(ex.playerB);
+            }
+            return used;
+        }
+
+        // ---------- RENDER ----------
+        function bannerStyle(p) {
+            if (!p || !p.img) return '';
+            const safe = p.img.replace(/'/g, "%27");
+            return `background-image:url('${safe}')`;
+        }
+
+        // Build the static card scaffold once.
+        function buildMatches() {
+            const wrap = document.getElementById('matches');
+            wrap.innerHTML = '';
+            MATCHES.forEach(def => {
+                const card = document.createElement('div');
+                card.className = 'match-card';
+                card.innerHTML =
+                    `<div class="match-title">${def.title}</div>` +
+                    `<div class="match" data-id="${def.id}" data-type="${def.type}"></div>`;
+                wrap.appendChild(card);
+            });
+        }
+
+        function renderMatch(def) {
+            const el = matchEl(def.id);
+            const m = state.matches[def.id];
+            const winnerSide = getWinner(def.id);
+
+            let a, b;
+            if (def.type === 'team') {
+                a = { name:'Team Alpha', img:null, isTeam:true };
+                b = { name:'Team Omega', img:null, isTeam:true };
+            } else {
+                a = playerById(m.playerA);
+                b = playerById(m.playerB);
+            }
+
+            const slot = (p, side) => {
+                const isEmpty = !p;
+                const isTeam  = !!(p && p.isTeam);
+                const winner  = winnerSide === side;
+                const loser   = winnerSide && winnerSide !== side;
+                const fallback = isEmpty ? 'TBD' : (p.img ? '' : p.name);
+                const score = side === 'a' ? m.scoreA : m.scoreB;
+                return `
+                    <div class="player side-${side} ${isEmpty?'empty':''} ${winner?'winner':''} ${loser?'loser':''} ${isTeam?'team-slot':''}" data-slot="${side}">
+                        <div class="banner" style="${bannerStyle(p)}">
+                            ${fallback ? `<span class="name-fallback">${fallback}</span>` : ''}
+                        </div>
+                        <span class="score">${score}</span>
+                    </div>
+                `;
+            };
+
+            el.innerHTML = slot(a, 'a') + `<span class="vs">VS</span>` + slot(b, 'b');
+            el.querySelectorAll('.player').forEach(p => {
+                p.addEventListener('mousedown', e => onSlotClick(e, def, p.dataset.slot));
+            });
+        }
+
+        let warWon = false;
+        function renderTeams() {
+            const { alpha, omega } = teamScores();
+            document.getElementById('scoreAlpha').textContent = alpha;
+            document.getElementById('scoreOmega').textContent = omega;
+
+            const majority = Math.floor(MATCH_IDS.length / 2) + 1;   // 3 of 5
+            const aWon = alpha >= majority;
+            const bWon = omega >= majority;
+            document.getElementById('team-alpha').classList.toggle('winner', aWon);
+            document.getElementById('team-omega').classList.toggle('winner', bWon);
+
+            if ((aWon || bWon) && !warWon) {
+                warWon = true;
+                fireConfetti(aWon ? 'a' : 'b');
+            }
+            if (!aWon && !bWon) warWon = false;
+        }
+
+        function renderAll() {
+            MATCHES.forEach(renderMatch);
+            renderTeams();
+        }
+
+        // ---------- SLOT CLICK ----------
+        function onSlotClick(e, def, slot) {
+            if (state.mode === 'seeding') {
+                if (def.type !== 'pick') return;          // team slots aren't assignable
+                e.preventDefault();
+                openPicker(def.id, slot, e.clientX, e.clientY);
+                return;
+            }
+            // tournament mode -> score the series
+            e.preventDefault();
+            const m = state.matches[def.id];
+            if (def.type === 'pick' && (!m.playerA || !m.playerB)) return;  // need both players
+            const key = slot === 'a' ? 'scoreA' : 'scoreB';
+            if (e.button === 0) { if (m[key] < WINS_NEEDED) m[key]++; }
+            else if (e.button === 2) { if (m[key] > 0) m[key]--; }
+            else return;
+            // Never let both sides sit on the winning score.
+            if (m.scoreA >= WINS_NEEDED && m.scoreB >= WINS_NEEDED) {
+                if (key === 'scoreA') m.scoreB = WINS_NEEDED - 1;
+                else m.scoreA = WINS_NEEDED - 1;
+            }
+            save();
+            renderAll();
+        }
+
+        // ---------- PICKER ----------
+        const picker = document.getElementById('picker');
+        let pickerCtx = null;
+        function openPicker(matchId, slot, x, y) {
+            pickerCtx = { matchId, slot };
+            const list = document.getElementById('picker-list');
+            const excluded = excludedFor(matchId, slot);
+            const current = slot === 'a' ? state.matches[matchId].playerA : state.matches[matchId].playerB;
+            list.innerHTML = '';
+            ROSTER.forEach(p => {
+                if (excluded.has(p.id) && p.id !== current) return;
+                const item = document.createElement('div');
+                item.className = 'picker-item';
+                item.innerHTML = `<div class="pi-banner" style="${bannerStyle(p)}"></div><div class="pi-name">${p.name}</div>`;
+                item.onclick = () => assignPlayer(p.id);
+                list.appendChild(item);
+            });
+            if (current) {
+                const clr = document.createElement('div');
+                clr.className = 'picker-clear';
+                clr.innerText = '× Clear slot';
+                clr.onclick = () => assignPlayer(null);
+                list.appendChild(clr);
+            }
+            picker.style.display = 'block';
+            picker.style.left = Math.min(x, window.innerWidth - 320) + 'px';
+            picker.style.top  = Math.min(y, window.innerHeight - 400) + 'px';
+        }
+        function closePicker() { picker.style.display = 'none'; pickerCtx = null; }
+        function assignPlayer(playerId) {
+            if (!pickerCtx) return;
+            const m = state.matches[pickerCtx.matchId];
+            m[pickerCtx.slot === 'a' ? 'playerA' : 'playerB'] = playerId;
+            // Changing who plays invalidates that series' score.
+            m.scoreA = 0; m.scoreB = 0;
+            closePicker();
+            save();
+            renderAll();
+        }
+        document.addEventListener('click', e => {
+            if (picker.style.display === 'block' && !picker.contains(e.target) && !e.target.closest('.player')) {
+                closePicker();
+            }
+        });
+
+        // ---------- CONTROLS ----------
+        const modeBtn = document.getElementById('modeBtn');
+        const instructionText = document.getElementById('instructionText');
+        function applyMode() {
+            const overlay = params.has('overlay');
+            document.body.className = (state.mode === 'tournament' ? 'tournament-mode' : 'seeding-mode') +
+                                     (overlay ? ' overlay-only' : '');
+            if (state.mode === 'tournament') {
+                modeBtn.innerText = 'Mode: TOURNAMENT (LIVE)';
+                instructionText.innerHTML = '<strong>Tournament:</strong> Left-Click +1, Right-Click -1. First to 2 wins the series; the winning team gets +1.';
+            } else {
+                modeBtn.innerText = 'Mode: SEEDING';
+                instructionText.innerHTML = '<strong>Seeding:</strong> Click a player slot to assign a player.';
+            }
+        }
+        modeBtn.addEventListener('click', () => {
+            state.mode = state.mode === 'seeding' ? 'tournament' : 'seeding';
+            save(); applyMode(); renderAll();
+        });
+        document.getElementById('resetScoresBtn').addEventListener('click', () => {
+            if (!confirm('Reset all scores? Player seeding stays.')) return;
+            MATCH_IDS.forEach(id => { state.matches[id].scoreA = 0; state.matches[id].scoreB = 0; });
+            save(); renderAll();
+        });
+        document.getElementById('resetAllBtn').addEventListener('click', () => {
+            if (!confirm('Reset everything (scores AND seeding)?')) return;
+            MATCH_IDS.forEach(id => state.matches[id] = { scoreA:0, scoreB:0, playerA:null, playerB:null });
+            save(); renderAll();
+        });
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'clan-war-state.json'; a.click();
+            URL.revokeObjectURL(url);
+        });
+        document.getElementById('importBtn').addEventListener('click', () => {
+            document.getElementById('importFile').click();
+        });
+        document.getElementById('importFile').addEventListener('change', e => {
+            const file = e.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                let data;
+                try { data = JSON.parse(ev.target.result); }
+                catch { alert('Invalid JSON.'); return; }
+                if (!data.matches) { alert('Bad clan war file.'); return; }
+                if (!confirm('Replace current clan war with import?')) return;
+                state.mode = data.mode || 'seeding';
+                MATCH_IDS.forEach(id => state.matches[id] = data.matches[id] || { scoreA:0, scoreB:0, playerA:null, playerB:null });
+                save(); applyMode(); renderAll();
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        });
+        document.addEventListener('contextmenu', e => e.preventDefault());
+
+        // ---------- PERSISTENCE ----------
+        function save() {
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+        }
+        function load() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return;
+                const data = JSON.parse(raw);
+                state.mode = data.mode || 'seeding';
+                MATCH_IDS.forEach(id => {
+                    if (data.matches && data.matches[id]) state.matches[id] = data.matches[id];
+                });
+            } catch(e) {}
+        }
+        window.addEventListener('storage', e => {
+            if (e.key === STORAGE_KEY) { load(); applyMode(); renderAll(); }
+        });
+
+        // ---------- CONFETTI ----------
+        function fireConfetti(side) {
+            if (typeof confetti !== 'function') return;
+            const el = document.getElementById(side === 'a' ? 'team-alpha' : 'team-omega');
+            const rect = el.getBoundingClientRect();
+            const origin = {
+                x: (rect.left + rect.width / 2) / window.innerWidth,
+                y: (rect.top + rect.height / 2) / window.innerHeight,
+            };
+            const defaults = { origin, spread: 80, ticks: 200, gravity: 0.9,
+                colors: ['#ce9d4d', '#e8bd75', '#ffffff', '#7ddcff', '#f1f1f1'] };
+            confetti({ ...defaults, particleCount: 120, startVelocity: 45, scalar: 1.1 });
+            setTimeout(() => confetti({ ...defaults, particleCount: 60, startVelocity: 30, angle: 60 }), 150);
+            setTimeout(() => confetti({ ...defaults, particleCount: 60, startVelocity: 30, angle: 120 }), 300);
+        }
+
+        // ---------- INIT ----------
+        buildMatches();
+        load();
+        applyMode();
+        renderAll();
+    </script>
+</body>
+</html>
