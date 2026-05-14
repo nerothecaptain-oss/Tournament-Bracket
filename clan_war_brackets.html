@@ -412,6 +412,7 @@
             if (state.mode === 'seeding') {
                 if (def.type !== 'pick') return;          // team slots aren't assignable
                 e.preventDefault();
+                e.stopPropagation();
                 openPicker(def.id, slot, e.clientX, e.clientY);
                 return;
             }
@@ -435,8 +436,11 @@
         // ---------- PICKER ----------
         const picker = document.getElementById('picker');
         let pickerCtx = null;
+        let ignoreNextOutsideClick = false;
         function openPicker(matchId, slot, x, y) {
             pickerCtx = { matchId, slot };
+            // Prevent the opening click from immediately triggering click-away close.
+            ignoreNextOutsideClick = true;
             const list = document.getElementById('picker-list');
             const excluded = excludedFor(matchId, slot);
             const current = slot === 'a' ? state.matches[matchId].playerA : state.matches[matchId].playerB;
@@ -472,6 +476,10 @@
             renderAll();
         }
         document.addEventListener('click', e => {
+            if (ignoreNextOutsideClick) {
+                ignoreNextOutsideClick = false;
+                return;
+            }
             if (picker.style.display === 'block' && !picker.contains(e.target) && !e.target.closest('.player')) {
                 closePicker();
             }
