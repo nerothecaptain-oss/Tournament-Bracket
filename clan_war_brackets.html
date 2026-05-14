@@ -18,7 +18,6 @@
         /* Center column: roughly half-width, centered on screen. */
         #war {
             width: 660px;
-            max-width: calc(100% - 600px);
             margin: 0 auto;
         }
 
@@ -660,8 +659,29 @@
         });
 
         // ---------- CONFETTI ----------
+        let confettiLoader = null;
+        function ensureConfetti() {
+            if (typeof window.confetti === 'function') return Promise.resolve(window.confetti);
+            if (confettiLoader) return confettiLoader;
+            confettiLoader = new Promise((resolve, reject) => {
+                const existing = document.querySelector('script[data-confetti-loader="1"]');
+                if (existing) {
+                    existing.addEventListener('load', () => resolve(window.confetti), { once: true });
+                    existing.addEventListener('error', () => reject(new Error('Confetti script failed to load.')), { once: true });
+                    return;
+                }
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js';
+                script.async = true;
+                script.dataset.confettiLoader = '1';
+                script.onload = () => resolve(window.confetti);
+                script.onerror = () => reject(new Error('Confetti script failed to load.'));
+                document.head.appendChild(script);
+            });
+            return confettiLoader;
+        }
+
         function fireConfetti(side) {
-            if (typeof confetti !== 'function') return;
             const el = document.getElementById(side === 'a' ? 'team-alpha' : 'team-omega');
             const rect = el.getBoundingClientRect();
             const origin = {
@@ -670,9 +690,12 @@
             };
             const defaults = { origin, spread: 80, ticks: 200, gravity: 0.9,
                 colors: ['#ce9d4d', '#e8bd75', '#ffffff', '#7ddcff', '#f1f1f1'] };
-            confetti({ ...defaults, particleCount: 120, startVelocity: 45, scalar: 1.1 });
-            setTimeout(() => confetti({ ...defaults, particleCount: 60, startVelocity: 30, angle: 60 }), 150);
-            setTimeout(() => confetti({ ...defaults, particleCount: 60, startVelocity: 30, angle: 120 }), 300);
+            ensureConfetti().then(run => {
+                if (typeof run !== 'function') return;
+                run({ ...defaults, particleCount: 120, startVelocity: 45, scalar: 1.1 });
+                setTimeout(() => run({ ...defaults, particleCount: 60, startVelocity: 30, angle: 60 }), 150);
+                setTimeout(() => run({ ...defaults, particleCount: 60, startVelocity: 30, angle: 120 }), 300);
+            }).catch(() => {});
         }
         // Confetti only on demand: tap a team box that already has 3+ points.
         document.getElementById('team-alpha').addEventListener('click', () => {
