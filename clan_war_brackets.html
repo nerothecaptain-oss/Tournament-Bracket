@@ -508,6 +508,11 @@
                 if (def.pairs && (!m.playerA2 || !m.playerB2)) return;
             }
             const side = slot[0];                          // a1/a2 -> 'a', b1/b2 -> 'b'
+            const scoresBefore = teamScores();
+            const majority = Math.floor(MATCH_IDS.length / 2) + 1;
+            const sideAlreadyWonWar = side === 'a'
+                ? scoresBefore.alpha >= majority
+                : scoresBefore.omega >= majority;
             const key = side === 'a' ? 'scoreA' : 'scoreB';
             if (e.button === 0) { if (m[key] < WINS_NEEDED) m[key]++; }
             else if (e.button === 2) { if (m[key] > 0) m[key]--; }
@@ -519,6 +524,13 @@
             }
             save();
             renderAll();
+            // Cursor burst only when clicking for a team that already won the war.
+            if (e.button === 0 && sideAlreadyWonWar) {
+                fireConfetti(side, {
+                    x: e.clientX / window.innerWidth,
+                    y: e.clientY / window.innerHeight,
+                });
+            }
         }
 
         // ---------- PICKER ----------
@@ -681,13 +693,15 @@
             return confettiLoader;
         }
 
-        function fireConfetti(side) {
-            const el = document.getElementById(side === 'a' ? 'team-alpha' : 'team-omega');
-            const rect = el.getBoundingClientRect();
-            const origin = {
-                x: (rect.left + rect.width / 2) / window.innerWidth,
-                y: (rect.top + rect.height / 2) / window.innerHeight,
-            };
+        function fireConfetti(side, originOverride) {
+            const origin = originOverride || (() => {
+                const el = document.getElementById(side === 'a' ? 'team-alpha' : 'team-omega');
+                const rect = el.getBoundingClientRect();
+                return {
+                    x: (rect.left + rect.width / 2) / window.innerWidth,
+                    y: (rect.top + rect.height / 2) / window.innerHeight,
+                };
+            })();
             const defaults = { origin, spread: 80, ticks: 200, gravity: 0.9,
                 colors: ['#ce9d4d', '#e8bd75', '#ffffff', '#7ddcff', '#f1f1f1'] };
             ensureConfetti().then(run => {
