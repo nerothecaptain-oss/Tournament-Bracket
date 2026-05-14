@@ -6,13 +6,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
+            background-color: #9B5433;
+            background-image: url("file:///C:/Users/Alex/Desktop/tester951.png");
             color: #f1f1f1;
             font-family: 'Roboto', sans-serif;
             margin: 0;
             padding: 16px 0;
             user-select: none;
         }
-        body.has-background { background-color: #9B5433; }
         body.overlay-only #controls { display: none !important; }
 
         /* Center column: roughly half-width, centered on screen. */
@@ -111,21 +112,24 @@
             flex: 0 0 auto;
         }
 
+        /* Shared bracket-cell metrics — same size as the original double-elim slots. */
+        .player, .pair {
+            position: relative;
+            width: 180px;
+            border-radius: 14px;
+            overflow: hidden;
+            background: rgba(0,0,0,0.75);
+            box-sizing: border-box;
+            --player-border-color: #3a3a3a;
+            --player-border-width: 1px;
+        }
         .player {
             display: flex; align-items: stretch;
             transition: opacity 0.2s;
-            height: 56px;
-            width: 240px;
-            position: relative;
-            overflow: hidden;
-            border-radius: 14px;
-            --player-border-color: #3a3a3a;
-            --player-border-width: 1px;
-            box-sizing: border-box;
-            background: rgba(0,0,0,0.75);
+            height: 48px;
         }
-        .player.side-b { flex-direction: row-reverse; }
-        .player::before {
+        .player.side-b, .pair.side-b { flex-direction: row-reverse; }
+        .player::before, .pair::before {
             content: '';
             position: absolute;
             inset: 0;
@@ -135,8 +139,8 @@
             pointer-events: none;
             z-index: 2;
         }
-        .player.loser .banner { opacity: 0.4; }
-        .player.winner {
+        .player.loser .banner, .pair.loser .banner { opacity: 0.4; }
+        .player.winner, .pair.winner {
             --player-border-color: #ce9d4d;
             --player-border-width: 3px;
         }
@@ -144,7 +148,24 @@
             background-color: rgba(206,157,77,0.10);
         }
 
-        .player .banner {
+        /* Co-Op 2v2: two stacked player cells share one side score. */
+        .pair {
+            display: flex; align-items: stretch;
+            height: 96px;
+        }
+        .pair-banners {
+            flex: 1 1 auto;
+            display: flex; flex-direction: column;
+        }
+        .pslot {
+            flex: 1 1 0;
+            display: flex;
+            position: relative;
+            transition: opacity 0.2s;
+        }
+        .pslot + .pslot { border-top: 1px solid #3a3a3a; }
+
+        .banner {
             flex: 1 1 auto;
             background-size: contain;
             background-position: center;
@@ -152,26 +173,30 @@
             background-color: transparent;
             display: flex; align-items: center; justify-content: center;
         }
-        .player .name-fallback {
-            font-family: 'Cinzel', serif; font-size: 15px;
+        .name-fallback {
+            font-family: 'Cinzel', serif; font-size: 13px;
             color: #aaa; padding: 0 10px;
             text-shadow: 0 1px 3px rgba(0,0,0,0.9);
         }
-        .player.team-slot .name-fallback { color: #e8bd75; font-size: 17px; }
-        .player .score {
-            flex: 0 0 44px;
+        .player.team-slot .name-fallback { color: #e8bd75; font-size: 15px; }
+        .score {
+            flex: 0 0 36px;
             background: rgba(0,0,0,0.8);
             text-align: center;
-            font-weight: bold; font-size: 19px;
+            font-weight: bold; font-size: 17px;
             color: #ce9d4d;
             display: flex; align-items: center; justify-content: center;
             z-index: 1;
         }
 
-        body.seeding-mode .match[data-type="pick"] .player { cursor: pointer; }
-        body.seeding-mode .match[data-type="pick"] .player:hover .banner { filter: brightness(1.25); }
-        body.tournament-mode .player { cursor: pointer; }
-        body.tournament-mode .player:hover .banner { filter: brightness(1.2); }
+        body.seeding-mode .match[data-type="pick"] .player,
+        body.seeding-mode .match[data-type="pick"] .pslot { cursor: pointer; }
+        body.seeding-mode .match[data-type="pick"] .player:hover .banner,
+        body.seeding-mode .match[data-type="pick"] .pslot:hover .banner { filter: brightness(1.25); }
+        body.tournament-mode .player,
+        body.tournament-mode .pslot { cursor: pointer; }
+        body.tournament-mode .player:hover .banner,
+        body.tournament-mode .pslot:hover .banner { filter: brightness(1.2); }
 
         /* ---------- PICKER ---------- */
         #picker {
@@ -244,15 +269,18 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
     <script>
         // ---------- HARDCODED ROSTER ----------
+        // Paste direct image URLs below. Imgur tip: use the direct link ending in .png/.jpg
+        // (right-click the image on imgur.com -> "Copy image address"), NOT the page URL.
+        // team: 'alpha' players can only fill LEFT slots, 'omega' only RIGHT slots.
         const ROSTER = [
-            { id:'p1', name:'Maxim',        img:'ICONMaxim.png' },
-            { id:'p2', name:'YamatoCannon', img:'ICONYamato2.png' },
-            { id:'p3', name:'MaryMaybe',    img:'ICONMary.png' },
-            { id:'p4', name:'Tyler1',       img:'ICONTyler.png' },
-            { id:'p5', name:'Dantes',       img:'ICONDantes.png' },
-            { id:'p6', name:'Hera',         img:'ICONHera.png' },
-            { id:'p7', name:'Pohx',         img:'ICONPohx.png' },
-            { id:'p8', name:'Simply',       img:'ICONSimply.png' },
+            { id:'p1', name:'Maxim',        team:'omega', img:'https://i.imgur.com/apBgiJb.png' },
+            { id:'p2', name:'YamatoCannon', team:'alpha', img:'https://i.imgur.com/dgsDBi7.png' },
+            { id:'p3', name:'MaryMaybe',    team:'alpha', img:'https://i.imgur.com/I3cTNoa.png' },
+            { id:'p4', name:'Tyler1',       team:'alpha', img:'https://i.imgur.com/mgALq36.png' },
+            { id:'p5', name:'Dantes',       team:'omega', img:'https://i.imgur.com/8CyXW65.png' },
+            { id:'p6', name:'Hera',         team:'omega', img:'https://i.imgur.com/WX8mX9j.png' },
+            { id:'p7', name:'Pohx',         team:'omega', img:'https://i.imgur.com/SNhsQTY.png' },
+            { id:'p8', name:'Simply',       team:'alpha', img:'https://i.imgur.com/I2qPvtC.png' },
         ];
 
         // ---------- MATCH DEFINITIONS ----------
@@ -261,9 +289,9 @@
         // exclude   = match id whose players cannot be picked here (Co-Op blocks Headliners).
         const MATCHES = [
             { id:'headliner',  title:'The Headliner — 1v1 (BO3)',       type:'pick' },
-            { id:'coop',       title:'The Co-Op Battle: 2v2 (BO3)',     type:'pick', exclude:'headliner' },
+            { id:'coop',       title:'The Co-Op Battle: 2v2 (BO3)',     type:'pick', pairs:true, exclude:'headliner' },
             { id:'warcraft',   title:'Total Warcraft: 4v4 (BO3)',       type:'team' },
-            { id:'redemption', title:'The Redemption Battle: 1v1 (BO3)',type:'pick' },
+            { id:'redemption', title:'The Redemption Battle: 1v1 (BO3)',type:'pick', exclude:['headliner','coop'] },
             { id:'ace',        title:'The ACE Battle: 1v1 (BO3)',       type:'pick' },
         ];
         const MATCH_IDS = MATCHES.map(m => m.id);
@@ -273,24 +301,54 @@
 
         // ---------- STATE ----------
         const STORAGE_KEY = 'wc3-clan-war-v1';
-        const currentUrl = new URL(window.location.href);
-        const params = currentUrl.searchParams;
-        const hasParam = key => params.has(key) || new RegExp(`(?:[?#&])${key}(?:[=&]|$)`).test(window.location.href);
-        if (!hasParam('obs')) document.body.classList.add('has-background');
-        if (hasParam('overlay')) document.body.classList.add('overlay-only');
+        const params = new URLSearchParams(location.search);
+        if (params.has('overlay')) document.body.classList.add('overlay-only');
 
         const state = { mode: 'seeding', matches: {} };
         MATCH_IDS.forEach(id => state.matches[id] = { scoreA:0, scoreB:0, playerA:null, playerB:null });
+
+        // Slot id -> the player field it maps to. 1v1/team matches use a/b; the
+        // 2v2 Co-Op match uses a1/a2 (Team Alpha pair) and b1/b2 (Team Omega pair).
+        const SLOT_FIELD = {
+            a:'playerA', b:'playerB',
+            a1:'playerA', a2:'playerA2',
+            b1:'playerB', b2:'playerB2',
+        };
+
+        // Make sure every match object has the fields the current build expects
+        // (older saved/imported states predate the Co-Op pair slots).
+        function ensureShape() {
+            MATCH_IDS.forEach(id => {
+                if (!state.matches[id]) state.matches[id] = { scoreA:0, scoreB:0, playerA:null, playerB:null };
+            });
+            const c = state.matches['coop'];
+            if (!('playerA2' in c)) c.playerA2 = null;
+            if (!('playerB2' in c)) c.playerB2 = null;
+        }
+        ensureShape();
 
         // ---------- HELPERS ----------
         const matchEl = id => document.querySelector(`.match[data-id="${id}"]`);
         const playerById = id => ROSTER.find(p => p.id === id) || null;
 
+        // Every roster player currently assigned anywhere in a match.
+        function playersInMatch(id) {
+            const m = state.matches[id];
+            const def = matchDef(id);
+            if (def.type === 'team') return [];
+            const ids = [m.playerA, m.playerB];
+            if (def.pairs) ids.push(m.playerA2, m.playerB2);
+            return ids.filter(Boolean);
+        }
+
         function getWinner(id) {
             const m = state.matches[id];
             const def = matchDef(id);
-            // 'pick' matches need both players assigned before a winner counts.
-            if (def.type === 'pick' && (!m.playerA || !m.playerB)) return null;
+            // 'pick' matches need every slot filled before a winner counts.
+            if (def.type === 'pick') {
+                if (!m.playerA || !m.playerB) return null;
+                if (def.pairs && (!m.playerA2 || !m.playerB2)) return null;
+            }
             if (m.scoreA >= WINS_NEEDED) return 'a';
             if (m.scoreB >= WINS_NEEDED) return 'b';
             return null;
@@ -312,16 +370,17 @@
         function excludedFor(matchId, slot) {
             const used = new Set();
             const m = state.matches[matchId];
-            // Can't put the same player on both sides of one match.
-            const other = slot === 'a' ? m.playerB : m.playerA;
-            if (other) used.add(other);
-            // Co-Op Battle: the two Headliner players are unavailable.
             const def = matchDef(matchId);
-            if (def.exclude) {
-                const ex = state.matches[def.exclude];
-                if (ex.playerA) used.add(ex.playerA);
-                if (ex.playerB) used.add(ex.playerB);
-            }
+            // No player can fill two slots of the same match.
+            Object.keys(SLOT_FIELD).forEach(s => {
+                if (s !== slot && m[SLOT_FIELD[s]]) used.add(m[SLOT_FIELD[s]]);
+            });
+            // Blocked by earlier matches: Co-Op blocks the two Headliners; the
+            // Redemption Battle blocks everyone used in the first two matches.
+            const blockers = def.exclude
+                ? (Array.isArray(def.exclude) ? def.exclude : [def.exclude])
+                : [];
+            blockers.forEach(exId => playersInMatch(exId).forEach(pid => used.add(pid)));
             return used;
         }
 
@@ -346,40 +405,71 @@
             });
         }
 
+        const VS_HTML = `<span class="vs">VS</span>`;
+
+        // A single 1v1 / team bracket cell.
+        function playerSlot(m, p, side, winnerSide) {
+            const isEmpty = !p;
+            const isTeam  = !!(p && p.isTeam);
+            const winner  = winnerSide === side;
+            const loser   = winnerSide && winnerSide !== side;
+            const fallback = isEmpty ? 'TBD' : (p.img ? '' : p.name);
+            const score = side === 'a' ? m.scoreA : m.scoreB;
+            return `
+                <div class="player side-${side} ${isEmpty?'empty':''} ${winner?'winner':''} ${loser?'loser':''} ${isTeam?'team-slot':''}" data-slot="${side}">
+                    <div class="banner" style="${bannerStyle(p)}">
+                        ${fallback ? `<span class="name-fallback">${fallback}</span>` : ''}
+                    </div>
+                    <span class="score">${score}</span>
+                </div>
+            `;
+        }
+
+        // A 2v2 side: two stacked player cells sharing one side score.
+        function pairSlot(m, side, winnerSide) {
+            const winner = winnerSide === side;
+            const loser  = winnerSide && winnerSide !== side;
+            const score  = side === 'a' ? m.scoreA : m.scoreB;
+            const subs   = side === 'a' ? ['a1','a2'] : ['b1','b2'];
+            const banners = subs.map(s => {
+                const p = playerById(m[SLOT_FIELD[s]]);
+                const isEmpty = !p;
+                const fallback = isEmpty ? 'TBD' : (p.img ? '' : p.name);
+                return `
+                    <div class="pslot ${isEmpty?'empty':''}" data-slot="${s}">
+                        <div class="banner" style="${bannerStyle(p)}">
+                            ${fallback ? `<span class="name-fallback">${fallback}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            return `
+                <div class="pair side-${side} ${winner?'winner':''} ${loser?'loser':''}">
+                    <div class="pair-banners">${banners}</div>
+                    <span class="score">${score}</span>
+                </div>
+            `;
+        }
+
         function renderMatch(def) {
             const el = matchEl(def.id);
             const m = state.matches[def.id];
             const winnerSide = getWinner(def.id);
 
-            let a, b;
-            if (def.type === 'team') {
-                a = { name:'Team Alpha', img:null, isTeam:true };
-                b = { name:'Team Omega', img:null, isTeam:true };
+            if (def.pairs) {
+                el.innerHTML = pairSlot(m, 'a', winnerSide) + VS_HTML + pairSlot(m, 'b', winnerSide);
+            } else if (def.type === 'team') {
+                const a = { name:'Team Alpha', img:null, isTeam:true };
+                const b = { name:'Team Omega', img:null, isTeam:true };
+                el.innerHTML = playerSlot(m, a, 'a', winnerSide) + VS_HTML + playerSlot(m, b, 'b', winnerSide);
             } else {
-                a = playerById(m.playerA);
-                b = playerById(m.playerB);
+                el.innerHTML = playerSlot(m, playerById(m.playerA), 'a', winnerSide) +
+                               VS_HTML +
+                               playerSlot(m, playerById(m.playerB), 'b', winnerSide);
             }
 
-            const slot = (p, side) => {
-                const isEmpty = !p;
-                const isTeam  = !!(p && p.isTeam);
-                const winner  = winnerSide === side;
-                const loser   = winnerSide && winnerSide !== side;
-                const fallback = isEmpty ? 'TBD' : (p.img ? '' : p.name);
-                const score = side === 'a' ? m.scoreA : m.scoreB;
-                return `
-                    <div class="player side-${side} ${isEmpty?'empty':''} ${winner?'winner':''} ${loser?'loser':''} ${isTeam?'team-slot':''}" data-slot="${side}">
-                        <div class="banner" style="${bannerStyle(p)}">
-                            ${fallback ? `<span class="name-fallback">${fallback}</span>` : ''}
-                        </div>
-                        <span class="score">${score}</span>
-                    </div>
-                `;
-            };
-
-            el.innerHTML = slot(a, 'a') + `<span class="vs">VS</span>` + slot(b, 'b');
-            el.querySelectorAll('.player').forEach(p => {
-                p.addEventListener('mousedown', e => onSlotClick(e, def, p.dataset.slot));
+            el.querySelectorAll('[data-slot]').forEach(node => {
+                node.addEventListener('mousedown', e => onSlotClick(e, def, node.dataset.slot));
             });
         }
 
@@ -412,15 +502,19 @@
             if (state.mode === 'seeding') {
                 if (def.type !== 'pick') return;          // team slots aren't assignable
                 e.preventDefault();
-                e.stopPropagation();
                 openPicker(def.id, slot, e.clientX, e.clientY);
                 return;
             }
             // tournament mode -> score the series
             e.preventDefault();
             const m = state.matches[def.id];
-            if (def.type === 'pick' && (!m.playerA || !m.playerB)) return;  // need both players
-            const key = slot === 'a' ? 'scoreA' : 'scoreB';
+            // 'pick' matches can only be scored once every slot is filled.
+            if (def.type === 'pick') {
+                if (!m.playerA || !m.playerB) return;
+                if (def.pairs && (!m.playerA2 || !m.playerB2)) return;
+            }
+            const side = slot[0];                          // a1/a2 -> 'a', b1/b2 -> 'b'
+            const key = side === 'a' ? 'scoreA' : 'scoreB';
             if (e.button === 0) { if (m[key] < WINS_NEEDED) m[key]++; }
             else if (e.button === 2) { if (m[key] > 0) m[key]--; }
             else return;
@@ -436,16 +530,18 @@
         // ---------- PICKER ----------
         const picker = document.getElementById('picker');
         let pickerCtx = null;
-        let ignoreNextOutsideClick = false;
         function openPicker(matchId, slot, x, y) {
             pickerCtx = { matchId, slot };
-            // Prevent the opening click from immediately triggering click-away close.
-            ignoreNextOutsideClick = true;
             const list = document.getElementById('picker-list');
             const excluded = excludedFor(matchId, slot);
-            const current = slot === 'a' ? state.matches[matchId].playerA : state.matches[matchId].playerB;
+            const current = state.matches[matchId][SLOT_FIELD[slot]];
+            // Left slots draw from Team Alpha, right slots from Team Omega.
+            const sideTeam = slot[0] === 'a' ? 'alpha' : 'omega';
+            picker.querySelector('h4').textContent =
+                sideTeam === 'alpha' ? 'Assign Team Alpha player' : 'Assign Team Omega player';
             list.innerHTML = '';
             ROSTER.forEach(p => {
+                if (p.team !== sideTeam) return;
                 if (excluded.has(p.id) && p.id !== current) return;
                 const item = document.createElement('div');
                 item.className = 'picker-item';
@@ -468,7 +564,7 @@
         function assignPlayer(playerId) {
             if (!pickerCtx) return;
             const m = state.matches[pickerCtx.matchId];
-            m[pickerCtx.slot === 'a' ? 'playerA' : 'playerB'] = playerId;
+            m[SLOT_FIELD[pickerCtx.slot]] = playerId;
             // Changing who plays invalidates that series' score.
             m.scoreA = 0; m.scoreB = 0;
             closePicker();
@@ -476,10 +572,6 @@
             renderAll();
         }
         document.addEventListener('click', e => {
-            if (ignoreNextOutsideClick) {
-                ignoreNextOutsideClick = false;
-                return;
-            }
             if (picker.style.display === 'block' && !picker.contains(e.target) && !e.target.closest('.player')) {
                 closePicker();
             }
@@ -489,10 +581,9 @@
         const modeBtn = document.getElementById('modeBtn');
         const instructionText = document.getElementById('instructionText');
         function applyMode() {
-            const classes = [state.mode === 'tournament' ? 'tournament-mode' : 'seeding-mode'];
-            if (!hasParam('obs')) classes.push('has-background');
-            if (hasParam('overlay')) classes.push('overlay-only');
-            document.body.className = classes.join(' ');
+            const overlay = params.has('overlay');
+            document.body.className = (state.mode === 'tournament' ? 'tournament-mode' : 'seeding-mode') +
+                                     (overlay ? ' overlay-only' : '');
             if (state.mode === 'tournament') {
                 modeBtn.innerText = 'Mode: TOURNAMENT (LIVE)';
                 instructionText.innerHTML = '<strong>Tournament:</strong> Left-Click +1, Right-Click -1. First to 2 wins the series; the winning team gets +1.';
@@ -513,6 +604,7 @@
         document.getElementById('resetAllBtn').addEventListener('click', () => {
             if (!confirm('Reset everything (scores AND seeding)?')) return;
             MATCH_IDS.forEach(id => state.matches[id] = { scoreA:0, scoreB:0, playerA:null, playerB:null });
+            ensureShape();
             save(); renderAll();
         });
         document.getElementById('exportBtn').addEventListener('click', () => {
@@ -536,6 +628,7 @@
                 if (!confirm('Replace current clan war with import?')) return;
                 state.mode = data.mode || 'seeding';
                 MATCH_IDS.forEach(id => state.matches[id] = data.matches[id] || { scoreA:0, scoreB:0, playerA:null, playerB:null });
+                ensureShape();
                 save(); applyMode(); renderAll();
             };
             reader.readAsText(file);
@@ -556,6 +649,7 @@
                 MATCH_IDS.forEach(id => {
                     if (data.matches && data.matches[id]) state.matches[id] = data.matches[id];
                 });
+                ensureShape();
             } catch(e) {}
         }
         window.addEventListener('storage', e => {
