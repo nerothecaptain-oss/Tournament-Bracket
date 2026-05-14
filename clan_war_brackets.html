@@ -6,14 +6,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
-            background-color: #9B5433;
-            background-image: url("file:///C:/Users/Alex/Desktop/tester951.png");
             color: #f1f1f1;
             font-family: 'Roboto', sans-serif;
             margin: 0;
             padding: 16px 0;
             user-select: none;
         }
+        body.has-background { background-color: #9B5433; }
         body.overlay-only #controls { display: none !important; }
 
         /* Center column: roughly half-width, centered on screen. */
@@ -276,8 +275,11 @@
 
         // ---------- STATE ----------
         const STORAGE_KEY = 'wc3-clan-war-v1';
-        const params = new URLSearchParams(location.search);
-        if (params.has('overlay')) document.body.classList.add('overlay-only');
+        const currentUrl = new URL(window.location.href);
+        const params = currentUrl.searchParams;
+        const hasParam = key => params.has(key) || new RegExp(`(?:[?#&])${key}(?:[=&]|$)`).test(window.location.href);
+        if (!hasParam('obs')) document.body.classList.add('has-background');
+        if (hasParam('overlay')) document.body.classList.add('overlay-only');
 
         const state = { mode: 'seeding', matches: {} };
         MATCH_IDS.forEach(id => state.matches[id] = { scoreA:0, scoreB:0, playerA:null, playerB:null });
@@ -481,9 +483,10 @@
         const modeBtn = document.getElementById('modeBtn');
         const instructionText = document.getElementById('instructionText');
         function applyMode() {
-            const overlay = params.has('overlay');
-            document.body.className = (state.mode === 'tournament' ? 'tournament-mode' : 'seeding-mode') +
-                                     (overlay ? ' overlay-only' : '');
+            const classes = [state.mode === 'tournament' ? 'tournament-mode' : 'seeding-mode'];
+            if (!hasParam('obs')) classes.push('has-background');
+            if (hasParam('overlay')) classes.push('overlay-only');
+            document.body.className = classes.join(' ');
             if (state.mode === 'tournament') {
                 modeBtn.innerText = 'Mode: TOURNAMENT (LIVE)';
                 instructionText.innerHTML = '<strong>Tournament:</strong> Left-Click +1, Right-Click -1. First to 2 wins the series; the winning team gets +1.';
