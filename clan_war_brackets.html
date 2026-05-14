@@ -6,14 +6,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
-            background-color: #9B5433;
-            background-image: url("file:///C:/Users/Alex/Desktop/tester951.png");
             color: #f1f1f1;
             font-family: 'Roboto', sans-serif;
             margin: 0;
             padding: 16px 0;
             user-select: none;
         }
+        body.has-background { background-color: #9B5433; }
         body.overlay-only #controls { display: none !important; }
 
         /* Center column: roughly half-width, centered on screen. */
@@ -115,7 +114,7 @@
         /* Shared bracket-cell metrics — same size as the original double-elim slots. */
         .player, .pair {
             position: relative;
-            width: 180px;
+            width: 176px;
             border-radius: 14px;
             overflow: hidden;
             background: rgba(0,0,0,0.75);
@@ -163,7 +162,6 @@
             position: relative;
             transition: opacity 0.2s;
         }
-        .pslot + .pslot { border-top: 1px solid #3a3a3a; }
 
         .banner {
             flex: 1 1 auto;
@@ -269,18 +267,15 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
     <script>
         // ---------- HARDCODED ROSTER ----------
-        // Paste direct image URLs below. Imgur tip: use the direct link ending in .png/.jpg
-        // (right-click the image on imgur.com -> "Copy image address"), NOT the page URL.
-        // team: 'alpha' players can only fill LEFT slots, 'omega' only RIGHT slots.
         const ROSTER = [
-            { id:'p1', name:'Maxim',        team:'omega', img:'https://i.imgur.com/apBgiJb.png' },
-            { id:'p2', name:'YamatoCannon', team:'alpha', img:'https://i.imgur.com/dgsDBi7.png' },
-            { id:'p3', name:'MaryMaybe',    team:'alpha', img:'https://i.imgur.com/I3cTNoa.png' },
-            { id:'p4', name:'Tyler1',       team:'alpha', img:'https://i.imgur.com/mgALq36.png' },
-            { id:'p5', name:'Dantes',       team:'omega', img:'https://i.imgur.com/8CyXW65.png' },
-            { id:'p6', name:'Hera',         team:'omega', img:'https://i.imgur.com/WX8mX9j.png' },
-            { id:'p7', name:'Pohx',         team:'omega', img:'https://i.imgur.com/SNhsQTY.png' },
-            { id:'p8', name:'Simply',       team:'alpha', img:'https://i.imgur.com/I2qPvtC.png' },
+            { id:'p1', name:'Maxim',        team:'omega', img:'ICONMaxim.png' },
+            { id:'p2', name:'YamatoCannon', team:'alpha', img:'ICONYamato2.png' },
+            { id:'p3', name:'MaryMaybe',    team:'alpha', img:'ICONMary.png' },
+            { id:'p4', name:'Tyler1',       team:'alpha', img:'ICONTyler.png' },
+            { id:'p5', name:'Dantes',       team:'omega', img:'ICONDantes.png' },
+            { id:'p6', name:'Hera',         team:'omega', img:'ICONHera.png' },
+            { id:'p7', name:'Pohx',         team:'omega', img:'ICONPohx.png' },
+            { id:'p8', name:'Simply',       team:'alpha', img:'ICONSimply.png' },
         ];
 
         // ---------- MATCH DEFINITIONS ----------
@@ -301,8 +296,11 @@
 
         // ---------- STATE ----------
         const STORAGE_KEY = 'wc3-clan-war-v1';
-        const params = new URLSearchParams(location.search);
-        if (params.has('overlay')) document.body.classList.add('overlay-only');
+        const currentUrl = new URL(window.location.href);
+        const params = currentUrl.searchParams;
+        const hasParam = key => params.has(key) || new RegExp(`(?:[?#&])${key}(?:[=&]|$)`).test(window.location.href);
+        if (!hasParam('obs')) document.body.classList.add('has-background');
+        if (hasParam('overlay')) document.body.classList.add('overlay-only');
 
         const state = { mode: 'seeding', matches: {} };
         MATCH_IDS.forEach(id => state.matches[id] = { scoreA:0, scoreB:0, playerA:null, playerB:null });
@@ -502,6 +500,7 @@
             if (state.mode === 'seeding') {
                 if (def.type !== 'pick') return;          // team slots aren't assignable
                 e.preventDefault();
+                e.stopPropagation();
                 openPicker(def.id, slot, e.clientX, e.clientY);
                 return;
             }
@@ -530,8 +529,11 @@
         // ---------- PICKER ----------
         const picker = document.getElementById('picker');
         let pickerCtx = null;
+        let ignoreNextOutsideClick = false;
         function openPicker(matchId, slot, x, y) {
             pickerCtx = { matchId, slot };
+            // Prevent the opening click from immediately triggering click-away close.
+            ignoreNextOutsideClick = true;
             const list = document.getElementById('picker-list');
             const excluded = excludedFor(matchId, slot);
             const current = state.matches[matchId][SLOT_FIELD[slot]];
@@ -572,6 +574,10 @@
             renderAll();
         }
         document.addEventListener('click', e => {
+            if (ignoreNextOutsideClick) {
+                ignoreNextOutsideClick = false;
+                return;
+            }
             if (picker.style.display === 'block' && !picker.contains(e.target) && !e.target.closest('.player')) {
                 closePicker();
             }
@@ -581,9 +587,10 @@
         const modeBtn = document.getElementById('modeBtn');
         const instructionText = document.getElementById('instructionText');
         function applyMode() {
-            const overlay = params.has('overlay');
-            document.body.className = (state.mode === 'tournament' ? 'tournament-mode' : 'seeding-mode') +
-                                     (overlay ? ' overlay-only' : '');
+            const classes = [state.mode === 'tournament' ? 'tournament-mode' : 'seeding-mode'];
+            if (!hasParam('obs')) classes.push('has-background');
+            if (hasParam('overlay')) classes.push('overlay-only');
+            document.body.className = classes.join(' ');
             if (state.mode === 'tournament') {
                 modeBtn.innerText = 'Mode: TOURNAMENT (LIVE)';
                 instructionText.innerHTML = '<strong>Tournament:</strong> Left-Click +1, Right-Click -1. First to 2 wins the series; the winning team gets +1.';
