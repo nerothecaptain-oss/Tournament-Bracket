@@ -771,6 +771,41 @@
         // ---------- CONTROLS ----------
         const modeBtn = document.getElementById('modeBtn');
         const instructionText = document.getElementById('instructionText');
+        const CONFIRM_MIN_DELAY_MS = 350;
+        const CONFIRM_RESET_MS = 3500;
+
+        function bindTwoClickConfirm(button, warningText, action) {
+            const baseLabel = button.textContent;
+            let armedAt = 0;
+            let resetTimer = null;
+
+            function reset() {
+                armedAt = 0;
+                button.textContent = baseLabel;
+                button.classList.remove('confirm-armed');
+                if (resetTimer) {
+                    clearTimeout(resetTimer);
+                    resetTimer = null;
+                }
+            }
+
+            button.addEventListener('click', () => {
+                if (!armedAt) {
+                    armedAt = Date.now();
+                    button.textContent = warningText;
+                    button.classList.add('confirm-armed');
+                    resetTimer = setTimeout(reset, CONFIRM_RESET_MS);
+                    return;
+                }
+
+                const elapsed = Date.now() - armedAt;
+                if (elapsed < CONFIRM_MIN_DELAY_MS) return;
+
+                reset();
+                action();
+            });
+        }
+
         function applyMode() {
             const classes = [state.mode === 'tournament' ? 'tournament-mode' : 'seeding-mode'];
             if (!hasParam('obs')) classes.push('has-background');
@@ -788,14 +823,12 @@
             state.mode = state.mode === 'seeding' ? 'tournament' : 'seeding';
             save(); applyMode(); renderAll();
         });
-        document.getElementById('resetScoresBtn').addEventListener('click', () => {
-            if (!confirm('Reset all scores? Seeding stays.')) return;
+        bindTwoClickConfirm(document.getElementById('resetScoresBtn'), 'Are you sure?', () => {
             MATCH_IDS.forEach(id => { state.matches[id].scoreA = 0; state.matches[id].scoreB = 0; });
             recompute();
             save(); renderAll();
         });
-        document.getElementById('resetAllBtn').addEventListener('click', () => {
-            if (!confirm('Reset everything (scores AND seeding)?')) return;
+        bindTwoClickConfirm(document.getElementById('resetAllBtn'), 'Are you sure?', () => {
             MATCH_IDS.forEach(id => state.matches[id] = { scoreA:0, scoreB:0, playerA:null, playerB:null });
             save(); renderAll();
         });
@@ -806,7 +839,7 @@
             a.href = url; a.download = 'bracket-state.json'; a.click();
             URL.revokeObjectURL(url);
         });
-        document.getElementById('importBtn').addEventListener('click', () => {
+        bindTwoClickConfirm(document.getElementById('importBtn'), 'Are you sure?', () => {
             document.getElementById('importFile').click();
         });
         document.getElementById('importFile').addEventListener('change', e => {
@@ -817,7 +850,6 @@
                 try { data = JSON.parse(ev.target.result); }
                 catch { alert('Invalid JSON.'); return; }
                 if (!data.matches) { alert('Bad bracket file.'); return; }
-                if (!confirm('Replace current bracket with import?')) return;
                 state.mode = data.mode || 'seeding';
                 MATCH_IDS.forEach(id => state.matches[id] = data.matches[id] || { scoreA:0, scoreB:0, playerA:null, playerB:null });
                 save(); applyMode(); renderAll();
